@@ -12,6 +12,7 @@ import { useChatSocket, getActiveChatKey } from '../hooks/useChatSocket';
 import Avatar from '../components/common/Avatar';
 import Spinner from '../components/common/Spinner';
 import UserSettingsModal from '../components/chat/Modals/UserSettingsModal';
+import { dbService } from '../services/localDB.service';
 
 const TABS = [
   { id: 'chats', label: 'Chats' },
@@ -43,45 +44,57 @@ export default function RoomListScreen({ navigation }) {
   const borderColor = theme.isLight ? '#e5e7eb' : '#374151';
 
   const loadJoined = useCallback(async () => {
+    const cached = await dbService.getCachedJoinedRooms();
+    if (cached.length) setJoinedRooms((prev) => (prev.length ? prev : cached));
+
     setLoadingRooms(true);
     try {
       const data = await roomService.getJoinedRooms();
-      const list = Array.isArray(data) ? data : (data.rooms || []);
+      const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : (data.rooms || []));
       setJoinedRooms((prev) => {
         const serverIds = new Set(list.map((r) => r._id));
-        // Keep any locally-added room the server hasn't caught up to yet
-        // (e.g. one just joined via handleJoinRoom) instead of dropping it.
+        
+        
         const notYetOnServer = prev.filter((r) => !serverIds.has(r._id) && r.__optimistic);
         return [...list, ...notYetOnServer];
       });
+      await dbService.saveJoinedRooms(list);
     } catch (e) {
-      setJoinedRooms([]);
+      if (!cached.length) setJoinedRooms([]);
     } finally {
       setLoadingRooms(false);
     }
   }, []);
 
   const loadGlobal = useCallback(async () => {
+    const cached = await dbService.getRooms('');
+    if (cached.length) setGlobalRooms((prev) => (prev.length ? prev : cached));
+
     setLoadingGlobal(true);
     try {
       const data = await roomService.getAllRooms();
       const list = Array.isArray(data) ? data : (data.rooms || []);
       setGlobalRooms(list);
+      await dbService.saveRooms(list, '');
     } catch (e) {
-      setGlobalRooms([]);
+      if (!cached.length) setGlobalRooms([]);
     } finally {
       setLoadingGlobal(false);
     }
   }, []);
 
   const loadPrivate = useCallback(async () => {
+    const cached = await dbService.getPrivateChats();
+    if (cached.length) setPrivateChats((prev) => (prev.length ? prev : cached));
+
     setLoadingPrivate(true);
     try {
       const data = await messageService.getPrivateChats();
       const list = Array.isArray(data) ? data : (data.chats || []);
       setPrivateChats(list);
+      await dbService.savePrivateChats(list);
     } catch (e) {
-      setPrivateChats([]);
+      if (!cached.length) setPrivateChats([]);
     } finally {
       setLoadingPrivate(false);
     }
@@ -119,16 +132,18 @@ export default function RoomListScreen({ navigation }) {
       if (idx !== -1) {
         const updated = [...prev];
         const [existing] = updated.splice(idx, 1);
-        return [{ ...existing, lastMessage }, ...updated];
+        const next = [{ ...existing, lastMessage }, ...updated];
+        dbService.savePrivateChats(next);
+        return next;
       }
 
       isBrandNew = true;
 
-      // msg.senderUsername/avatar are always the SENDER's details. If I'm the
-      // sender (starting a new conversation myself), those are MY details,
-      // not the recipient's — using them here would mislabel the new chat
-      // entry with my own name/avatar. Only trust them when the other person
-      // sent this message; otherwise fall through to a refetch below.
+      
+      
+      
+      
+      
       if (!isOwnMessage) {
         const otherUser = {
           id: otherUserId,
@@ -137,27 +152,44 @@ export default function RoomListScreen({ navigation }) {
           avatar: msg.avatar || null,
           isOnline: msg.isOnline,
         };
-        return [{ otherUser, lastMessage }, ...prev];
+        const next = [{ otherUser, lastMessage }, ...prev];
+        dbService.savePrivateChats(next);
+        return next;
       }
 
       return prev;
     });
 
-    // I started this conversation and we don't have the recipient's real
-    // details on hand — fetch the authoritative list instead of guessing.
+    
+    
     if (isOwnMessage && isBrandNew) {
       loadPrivate();
     }
   }, [user, loadPrivate]);
 
   const loadUnread = useCallback(async () => {
-    const counts = await roomService.getUnreadCounts();
-    setUnreadCounts(counts && typeof counts === 'object' ? counts : {});
+    const cached = await dbService.loadUnreadCounts();
+    if (Object.keys(cached).length) setUnreadCounts((prev) => (Object.keys(prev).length ? prev : cached));
+
+    try {
+      const counts = await roomService.getUnreadCounts();
+      const next = counts && typeof counts === 'object' ? { ...counts } : {};
+      const activeKey = getActiveChatKey();
+      if (activeKey) delete next[activeKey];
+      setUnreadCounts(next);
+      await dbService.saveUnreadCounts(next);
+    } catch (e) {
+      
+    }
   }, []);
 
   const handleUnreadUpdate = useCallback(({ chatKey } = {}) => {
     if (!chatKey || chatKey === getActiveChatKey()) return;
-    setUnreadCounts((prev) => ({ ...prev, [chatKey]: (prev[chatKey] || 0) + 1 }));
+    setUnreadCounts((prev) => {
+      const next = { ...prev, [chatKey]: (prev[chatKey] || 0) + 1 };
+      dbService.saveUnreadCounts(next);
+      return next;
+    });
   }, []);
 
   const handleRoomReadAck = useCallback(({ roomId }) => {
@@ -167,6 +199,7 @@ export default function RoomListScreen({ navigation }) {
       if (!prev[key]) return prev;
       const next = { ...prev };
       delete next[key];
+      dbService.saveUnreadCounts(next);
       return next;
     });
   }, []);
@@ -185,8 +218,8 @@ export default function RoomListScreen({ navigation }) {
     loadUnread();
   }, [loadJoined, loadGlobal, loadPrivate, loadUnread]);
 
-  // Re-sync unread counts whenever this list regains focus (e.g. coming
-  // back out of a room/private chat after it's been marked read there).
+  
+  
   useFocusEffect(
     useCallback(() => {
       loadUnread();
@@ -214,19 +247,19 @@ export default function RoomListScreen({ navigation }) {
       await roomService.joinRoom(room._id, data);
       emitJoinRoom(data);
 
-      // Add it to the Groups section straight away so it's there the moment
-      // we land back on the chats list, instead of depending on a refetch
-      // that can race with the server or silently no-op on failure.
-      //
-      // NOTE: we deliberately do NOT call loadJoined() here. The join POST
-      // above can return before the room is visible to a subsequent
-      // GET /rooms/joined (replica lag / eventual consistency), and
-      // loadJoined() does a hard `setJoinedRooms(list)` replace — so an
-      // immediate refetch would silently clobber this optimistic add with
-      // a stale server list that doesn't include the room yet, making it
-      // vanish from the Groups section right after it appeared. A manual
-      // pull-to-refresh (which merges, see loadJoined below) will reconcile
-      // any real discrepancy once the server has caught up.
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
       setJoinedRooms((prev) => (prev.some((r) => r._id === room._id) ? prev : [...prev, { ...room, __optimistic: true }]));
 
       setActiveTab('chats');
@@ -376,7 +409,7 @@ export default function RoomListScreen({ navigation }) {
       <TouchableOpacity
         key={item._id}
         style={styles.roomItem}
-        onPress={() => isJoined ? navigation.navigate('Chat', { room: item }) : handleJoinRoom(item)}
+        onPress={() => isJoined ? navigation.navigate('Chat', { room: item, unreadCount: unread }) : handleJoinRoom(item)}
         activeOpacity={0.5}
         disabled={!!item.isDeleted && isJoined}
       >
@@ -412,7 +445,7 @@ export default function RoomListScreen({ navigation }) {
       <TouchableOpacity
         key={otherId}
         style={styles.roomItem}
-        onPress={() => navigation.navigate('Chat', { privateChat: { ...other, id: otherId } })}
+        onPress={() => navigation.navigate('Chat', { privateChat: { ...other, id: otherId }, unreadCount: unread })}
         activeOpacity={0.5}
       >
         <Avatar url={other.avatar} name={other.username} size={44} isOnline={other.isOnline} />
@@ -543,7 +576,7 @@ export default function RoomListScreen({ navigation }) {
           {renderNewRoomBtn()}
           {renderSidebarFooter()}
 
-          {/* Create Room Modal */}
+          {}
           <Modal visible={showCreateRoom} animationType="fade" transparent onRequestClose={() => setShowCreateRoom(false)}>
             <Pressable style={styles.modalBackdrop} onPress={() => setShowCreateRoom(false)}>
               <View style={[styles.modalCard, { backgroundColor: theme.background, borderColor }]}>
@@ -593,7 +626,7 @@ export default function RoomListScreen({ navigation }) {
             </Pressable>
           </Modal>
 
-          {/* Theme Picker Modal */}
+          {}
           <Modal visible={showThemePicker} animationType="slide" transparent onRequestClose={() => setShowThemePicker(false)}>
             <View style={[styles.modalBackdrop, { backgroundColor: 'transparent' }]}>
               <View style={[styles.themeCard, { backgroundColor: theme.background, borderColor, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>

@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, FlatList, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
 import Spinner from '../common/Spinner';
@@ -44,8 +45,8 @@ export default function MembersPanel({ visible, onClose, members, admin, current
   const [search, setSearch] = useState('');
   const borderColor = theme.isLight ? '#cbd5e0' : '#4a5568';
 
-  // Keep the panel mounted while it animates closed so we can play the
-  // slide-out; only actually unmount once the animation finishes.
+  
+  
   const [rendered, setRendered] = useState(visible);
   const translateX = useRef(new Animated.Value(PANEL_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -85,7 +86,7 @@ export default function MembersPanel({ visible, onClose, members, admin, current
         if (finished) setRendered(false);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [visible]);
 
   const filtered = useMemo(() => {
@@ -110,6 +111,7 @@ export default function MembersPanel({ visible, onClose, members, admin, current
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         </Animated.View>
         <Animated.View style={[styles.panel, { backgroundColor: theme.background, borderColor, transform: [{ translateX }] }]}>
+          <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
           <View style={[styles.header, { borderColor }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="people" size={20} color={theme.otherUsernameColor} />
@@ -164,6 +166,7 @@ export default function MembersPanel({ visible, onClose, members, admin, current
               }
             />
           )}
+          </SafeAreaView>
         </Animated.View>
       </View>
     </Modal>

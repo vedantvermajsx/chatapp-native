@@ -26,7 +26,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      {/* Dark radial chatapp background covers WHOLE screen */}
+      {}
       <View style={styles.background}>
         <View style={styles.gradientGlow} />
         <View style={[styles.previewRow, styles.previewRowTop]}>
@@ -52,7 +52,7 @@ export default function LoginScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* App badge & title at top */}
+          {}
           <View style={styles.topBrand}>
             <View style={[styles.heroBadge, { backgroundColor: 'rgba(0,128,128,0.15)' }]}>
               <Ionicons name="chatbubbles" size={22} color={accent} />
@@ -61,7 +61,7 @@ export default function LoginScreen({ navigation }) {
             <Text style={[styles.heroTitle, { color: accent }]}>messaging app.</Text>
           </View>
 
-          {/* Centered white card with form */}
+          {}
           <View style={styles.card}>
             <Text style={styles.title}>Welcome back</Text>
             <Text style={styles.subtitle}>Sign in to pick up where you left off.</Text>

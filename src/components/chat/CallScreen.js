@@ -3,10 +3,6 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
 
-// UI/UX-only call screen mirroring web's ActiveCallScreen + CallControls.
-// No WebRTC/media is wired up here per product decision -- this is purely
-// the visual shell (calling state, mute/video/end buttons) reachable from
-// the private-chat header's call/video icons.
 export default function CallScreen({ visible, target, isVideo, onEnd }) {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);

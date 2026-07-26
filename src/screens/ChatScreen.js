@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, Text } from 'react-native';
+import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, Text, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,6 +9,7 @@ import { useChatSocket, setActiveChatKey } from '../hooks/useChatSocket';
 import messageService from '../services/message.service';
 import roomService from '../services/room.service';
 import { applyLastRead } from '../utils/applyLastRead';
+import { dbService } from '../services/localDB.service';
 
 import ChatHeader from '../components/chat/ChatHeader';
 import MessageBubble, { SystemMessage, TypingIndicator } from '../components/chat/Message';
@@ -35,12 +36,13 @@ export default function ChatScreen({ route, navigation }) {
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
-  const [zoomUrl, setZoomUrl] = useState(null);
+  const [zoomMedia, setZoomMedia] = useState(null);
   const [leaving, setLeaving] = useState(false);
   const [call, setCall] = useState({ visible: false, isVideo: false });
   const [topInset, setTopInset] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
 
+  const unreadCountRef = useRef(route.params?.unreadCount || 0);
   const listRef = useRef(null);
   const typingTargetRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -56,22 +58,18 @@ export default function ChatScreen({ route, navigation }) {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // When this screen is already mounted and the user taps into a different
-  // room/private chat, React Navigation may reuse this same screen instance
-  // and just update route.params instead of remounting it. Without this,
-  // `currentRoom`/`currentPrivateChat` (seeded once from the initial params)
-  // would stay stuck on the old chat, so the previous chat's messages would
-  // keep showing (or vanish) instead of loading the newly selected chat.
   useEffect(() => {
     const nextRoom = route.params?.room || null;
     const nextPrivateChat = route.params?.privateChat || null;
 
     if (nextRoom && nextRoom._id !== currentRoom?._id) {
+      unreadCountRef.current = route.params?.unreadCount || 0;
       setCurrentRoom(nextRoom);
       setCurrentPrivateChat(null);
       setMessages([]);
       setLoadingMessages(true);
     } else if (nextPrivateChat && nextPrivateChat.id !== currentPrivateChat?.id) {
+      unreadCountRef.current = route.params?.unreadCount || 0;
       setCurrentPrivateChat(nextPrivateChat);
       setCurrentRoom(null);
       setMessages([]);
@@ -79,21 +77,36 @@ export default function ChatScreen({ route, navigation }) {
     }
   }, [route.params]);
 
-  // ---- Data loading -------------------------------------------------
+  
+  
   const loadRoomMessages = useCallback(async () => {
     if (!roomId) return;
+    const cacheKey = `room_${roomId}`;
+    const unreadCount = unreadCountRef.current;
+
+    const cached = await dbService.getMessages(cacheKey);
+    if (cached?.messages?.length) {
+      setMessages(cached.messages.map((m) => normalizeIncomingRoomMessage(m, myId)));
+      setLoadingMessages(false);
+      const last = cached.messages[cached.messages.length - 1];
+      if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
+      if (unreadCount > 0) await _fetchNewRoomMessages(roomId, cacheKey, cached.messages, myId, setMessages);
+      return;
+    }
+
     setLoadingMessages(true);
     try {
       const data = await messageService.getRoomMessages(roomId, 20);
       const list = data.messages || data || [];
       const normalized = list.map((m) => normalizeIncomingRoomMessage(m, myId));
       setMessages(normalized);
+      await dbService.saveMessages(cacheKey, normalized, data.hasMore);
       const last = normalized[normalized.length - 1];
       if (last) {
         emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
       }
     } catch (e) {
-      // keep empty
+      
     } finally {
       setLoadingMessages(false);
     }
@@ -101,6 +114,25 @@ export default function ChatScreen({ route, navigation }) {
 
   const loadPrivateMessages = useCallback(async () => {
     if (!otherUserId) return;
+    const cacheKey = `private_${otherUserId}`;
+    const unreadCount = unreadCountRef.current;
+
+    const cached = await dbService.getMessages(cacheKey);
+    if (cached?.messages?.length) {
+      setMessages(cached.messages.map((m) => normalizeIncomingPrivateMessage(m, myId)));
+      setLoadingMessages(false);
+      _refreshLastReadStatus(otherUserId, myId, setMessages);
+      if (unreadCount > 0) {
+        await _fetchNewPrivateMessages(otherUserId, cacheKey, cached.messages, myId, setMessages, emitMarkReadRef);
+      } else {
+        const last = cached.messages[cached.messages.length - 1];
+        if (last && !last.isOwn && !last.isSystemMessage) {
+          emitMarkReadRef.current({ senderId: otherUserId, receiverId: myId, messageId: last.id, timestamp: last.timestamp });
+        }
+      }
+      return;
+    }
+
     setLoadingMessages(true);
     try {
       const data = await messageService.getPrivateMessages(otherUserId, 20);
@@ -108,6 +140,7 @@ export default function ChatScreen({ route, navigation }) {
       const normalized = list.map((m) => normalizeIncomingPrivateMessage(m, myId));
       const withRead = applyLastRead(normalized, data.lastRead);
       setMessages(withRead);
+      await dbService.saveMessages(cacheKey, withRead, data.hasMore);
       const last = withRead[withRead.length - 1];
       if (last && !last.isOwn && !last.isSystemMessage) {
         emitMarkReadRef.current({
@@ -118,7 +151,7 @@ export default function ChatScreen({ route, navigation }) {
         });
       }
     } catch (e) {
-      // keep empty
+      
     } finally {
       setLoadingMessages(false);
     }
@@ -158,6 +191,7 @@ export default function ChatScreen({ route, navigation }) {
       if (String(msg.roomId) !== String(roomId)) return;
       const incoming = normalizeIncomingRoomMessage(msg, myId);
       setMessages((prev) => reconcileIncoming(prev, incoming));
+      dbService.addMessage(`room_${roomId}`, incoming);
       if (!incoming.isOwn && !incoming.isSystemMessage) {
         emitMarkRoomReadRef.current({ roomId, messageId: incoming.id, timestamp: incoming.timestamp });
       }
@@ -171,9 +205,10 @@ export default function ChatScreen({ route, navigation }) {
       if (String(otherId) !== String(otherUserId)) return;
       const incoming = normalizeIncomingPrivateMessage(msg, myId);
       setMessages((prev) => reconcileIncoming(prev, incoming));
+      dbService.addMessage(`private_${otherId}`, incoming);
 
       // Let the sender know we've seen it, mirroring the web app — without
-      // this the "seen" tick under our own sent messages never appears.
+      
       if (!incoming.isOwn && !incoming.isSystemMessage) {
         emitMarkReadRef.current({
           senderId: msg.senderId,
@@ -186,8 +221,8 @@ export default function ChatScreen({ route, navigation }) {
     [otherUserId, myId]
   );
 
-  // Update our own messages with the seen tick once the other person's
-  // client reports back that they've read up to a given message.
+  
+  
   const onReadReceipt = useCallback(
     ({ receiverId, messageId, lastSeenAt }) => {
       if (String(receiverId) !== String(otherUserId)) return;
@@ -224,7 +259,7 @@ export default function ChatScreen({ route, navigation }) {
   emitMarkReadRef.current = emitMarkRead;
   emitMarkRoomReadRef.current = emitMarkRoomRead;
 
-  // ---- Typing ----------------------------------------------------------
+  
   const handleTypingActivity = useCallback(
     (charCount) => {
       const payload = roomId ? { type: 'room', roomId } : { type: 'private', receiverId: otherUserId, charCount };
@@ -257,7 +292,7 @@ export default function ChatScreen({ route, navigation }) {
     return null;
   }, [currentPrivateChat, currentRoom, typingUsers, otherUserId, roomId]);
 
-  // ---- Sending -----------------------------------------------------
+  
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
   }, []);
@@ -265,6 +300,12 @@ export default function ChatScreen({ route, navigation }) {
   useEffect(() => {
     scrollToEnd();
   }, [messages.length, typingIndicator, scrollToEnd]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const sub = Keyboard.addListener(showEvent, () => scrollToEnd());
+    return () => sub.remove();
+  }, [scrollToEnd]);
 
   const sendOptimistic = (text, media) => {
     const uuid = uuidv4();
@@ -301,9 +342,11 @@ export default function ChatScreen({ route, navigation }) {
         timestamp: response?.timestamp || next[idx].timestamp,
         isPending: false,
       };
+      const cacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
+      if (cacheKey) dbService.addMessage(cacheKey, next[idx]);
       return next;
     });
-  }, []);
+  }, [roomId, otherUserId]);
 
   const handleSend = async () => {
     const text = inputMessage.trim();
@@ -342,8 +385,8 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const handleStickerSend = async (sticker) => {
-    // sticker: { type: 'sticker' | 'gif', url } from the Klipy picker,
-    // sent as message media just like an uploaded image/video.
+    
+    
     const { uuid } = sendOptimistic('', sticker);
     try {
       let response;
@@ -361,7 +404,7 @@ export default function ChatScreen({ route, navigation }) {
     } catch (e) {}
   };
 
-  // ---- Room actions --------------------------------------------------
+  
   const handleLeaveOrDelete = () => {
     if (!currentRoom) return;
     const isDelete = isRoomAdmin && !currentRoom.isDeleted;
@@ -394,10 +437,10 @@ export default function ChatScreen({ route, navigation }) {
   const handleStartPrivateChatFromMember = (member) => {
     setShowMembers(false);
     navigation.push('Chat', {
-      // Spread first so `role` (and anything else the members API returns,
-      // e.g. for guest users) survives instead of being dropped by
-      // whitelisting fields here — role is required to pick the correct
-      // receiverModel ('Guest' vs 'User') when sending, see handleSend.
+      
+      
+      
+      
       privateChat: {
         ...member,
         id: member.id || member._id,
@@ -405,7 +448,7 @@ export default function ChatScreen({ route, navigation }) {
     });
   };
 
-  // ---- Render ---------------------------------------------------------
+  
   const renderItem = ({ item }) => {
     if (item.isSystemMessage) {
       return <SystemMessage msg={item} isPrivateChat={!!currentPrivateChat} />;
@@ -418,7 +461,7 @@ export default function ChatScreen({ route, navigation }) {
         showUsername={!item.isOwn && !!currentRoom}
         topRadius={{ tl: 18, tr: 18 }}
         bottomRadius={{ bl: item.isOwn ? 18 : 4, br: item.isOwn ? 4 : 18 }}
-        onImagePress={setZoomUrl}
+        onImagePress={setZoomMedia}
       />
     );
   };
@@ -507,7 +550,13 @@ export default function ChatScreen({ route, navigation }) {
         />
       )}
 
-      <ImageZoomModal visible={!!zoomUrl} url={zoomUrl} onClose={() => setZoomUrl(null)} />
+      <ImageZoomModal
+        visible={!!zoomMedia}
+        url={zoomMedia?.url}
+        media={zoomMedia?.media}
+        mediaType={zoomMedia?.mediaType}
+        onClose={() => setZoomMedia(null)}
+      />
 
       <CallScreen
         visible={call.visible}
@@ -519,7 +568,85 @@ export default function ChatScreen({ route, navigation }) {
   );
 }
 
-// ---- Helpers -----------------------------------------------------------
+
+
+
+
+
+
+
+
+async function _refreshLastReadStatus(otherUserId, myId, setMessages) {
+  try {
+    const { lastRead } = await messageService.getLastReadStatus(otherUserId);
+    if (!lastRead) return;
+    setMessages((prev) => applyLastRead(prev, lastRead));
+  } catch (e) {
+    
+  }
+}
+
+async function _fetchNewRoomMessages(roomId, cacheKey, existingRaw, myId, setMessages) {
+  try {
+    let merged = existingRaw;
+    let latestTimestamp = merged[merged.length - 1]?.timestamp;
+    if (!latestTimestamp) return;
+
+    let hasMore = true;
+    while (hasMore) {
+      const res = await messageService.getRoomMessages(roomId, 20, null, latestTimestamp);
+      hasMore = res.hasMore || false;
+      if (!res.messages?.length) break;
+
+      const existingIds = new Set(merged.map((m) => String(m._id || m.id)));
+      const reallyNew = res.messages.filter((m) => !existingIds.has(String(m._id || m.id)));
+      if (!reallyNew.length) break;
+
+      merged = [...merged, ...reallyNew];
+      await dbService.mergeNewMessages(cacheKey, reallyNew);
+      latestTimestamp = merged[merged.length - 1]?.timestamp || latestTimestamp;
+    }
+
+    setMessages(merged.map((m) => normalizeIncomingRoomMessage(m, myId)));
+  } catch (e) {
+    
+  }
+}
+
+async function _fetchNewPrivateMessages(otherUserId, cacheKey, existingRaw, myId, setMessages, emitMarkReadRef) {
+  try {
+    let merged = existingRaw;
+    let latestTimestamp = merged[merged.length - 1]?.timestamp;
+    if (!latestTimestamp) return;
+
+    let hasMore = true;
+    let lastRead = null;
+    while (hasMore) {
+      const res = await messageService.getPrivateMessages(otherUserId, 20, null, latestTimestamp);
+      hasMore = res.hasMore || false;
+      lastRead = res.lastRead ?? lastRead;
+
+      const existingIds = new Set(merged.map((m) => String(m._id || m.id)));
+      const reallyNew = (res.messages || []).filter((m) => !existingIds.has(String(m._id || m.id)));
+      if (!reallyNew.length) break;
+
+      merged = [...merged, ...reallyNew];
+      await dbService.mergeNewMessages(cacheKey, reallyNew);
+      latestTimestamp = merged[merged.length - 1]?.timestamp || latestTimestamp;
+    }
+
+    let normalized = merged.map((m) => normalizeIncomingPrivateMessage(m, myId));
+    if (lastRead) normalized = applyLastRead(normalized, lastRead);
+    setMessages(normalized);
+
+    const last = normalized[normalized.length - 1];
+    if (last && !last.isOwn && !last.isSystemMessage) {
+      emitMarkReadRef.current({ senderId: otherUserId, receiverId: myId, messageId: last.id, timestamp: last.timestamp });
+    }
+  } catch (e) {
+    
+  }
+}
 
 function normalizeIncomingRoomMessage(m, myId) {
   const senderId = m.userId || m.senderId || m.sender?._id;

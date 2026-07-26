@@ -1,20 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatMessageTime, formatSeenAt } from '../../utils/dateUtils';
 import { toDisplayUrl } from '../../utils/imageUrl';
-
-const SYSTEM_ICONS = {
-  'member-joined': 'person-add-outline',
-  'member-left': 'person-remove-outline',
-  call: 'call-outline',
-  'missed-call': 'call-outline',
-  'room-created': 'chatbubble-outline',
-  'room-renamed': 'create-outline',
-  'room-deleted': 'trash-outline',
-};
+import { SYSTEM_ICONS } from '../common/SystemIcons.js';
 
 export function SystemMessage({ msg, isPrivateChat }) {
   const { theme } = useTheme();
@@ -67,6 +59,41 @@ function TextContent({ text, textColor, bubbleBg }) {
   );
 }
 
+function VideoContent({ msg, onImagePress }) {
+  const [playing, setPlaying] = useState(false);
+  const url = msg.media.url;
+
+  if (!playing) {
+    return (
+      <TouchableOpacity activeOpacity={0.85} onPress={() => setPlaying(true)}>
+        <View style={[styles.mediaImage, styles.videoThumb]}>
+          {msg.media.thumbnail || msg.media.low ? (
+            <Image source={{ uri: toDisplayUrl(msg.media.thumbnail || msg.media.low) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : null}
+          <View style={styles.playBadge}>
+            <Ionicons name="play" size={26} color="#fff" />
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      activeOpacity={1}
+      onLongPress={() => onImagePress?.({ url, media: msg.media, mediaType: 'video' })}
+    >
+      <Video
+        source={{ uri: url }}
+        style={styles.mediaImage}
+        useNativeControls
+        resizeMode={ResizeMode.CONTAIN}
+        shouldPlay
+      />
+    </TouchableOpacity>
+  );
+}
+
 export default function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagged, topRadius, bottomRadius, onImagePress }) {
   const { theme } = useTheme();
 
@@ -76,6 +103,7 @@ export default function MessageBubble({ msg, isOwn, isPrivateChat, showUsername,
 
   const isSticker = msg?.media?.type === 'sticker' || msg?.media?.type === 'gif';
   const isImageMedia = msg?.media?.type === 'image';
+  const isVideoMedia = msg?.media?.type === 'video';
 
   return (
     <View style={[styles.row, { justifyContent: isOwn ? 'flex-end' : 'flex-start' }]}>
@@ -83,12 +111,14 @@ export default function MessageBubble({ msg, isOwn, isPrivateChat, showUsername,
 
       <View style={{ maxWidth: '78%', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
         {isSticker ? (
-          <TouchableOpacity activeOpacity={0.85} onPress={() => onImagePress?.(msg.media.url)} style={{ position: 'relative' }}>
+          
+          
+          <View style={{ position: 'relative' }}>
             <Image source={{ uri: toDisplayUrl(msg.media.url) }} style={styles.sticker} resizeMode="contain" />
             {msg.isPending && (
               <Ionicons name="reload-outline" size={14} color="#9ca3af" style={{ position: 'absolute', bottom: 4, right: 4 }} />
             )}
-          </TouchableOpacity>
+          </View>
         ) : (
           <View
             style={[
@@ -110,7 +140,7 @@ export default function MessageBubble({ msg, isOwn, isPrivateChat, showUsername,
               </Text>
             )}
             {isImageMedia && (
-              <TouchableOpacity activeOpacity={0.85} onPress={() => onImagePress?.(msg.media.hd || msg.media.mid || msg.media.url)}>
+              <TouchableOpacity activeOpacity={0.85} onPress={() => onImagePress?.({ url: msg.media.hd || msg.media.mid || msg.media.url, media: msg.media, mediaType: 'image' })}>
                 <Image
                   source={{ uri: toDisplayUrl(msg.media.thumbnail || msg.media.low || msg.media.url) }}
                   style={styles.mediaImage}
@@ -118,6 +148,7 @@ export default function MessageBubble({ msg, isOwn, isPrivateChat, showUsername,
                 />
               </TouchableOpacity>
             )}
+            {isVideoMedia && <VideoContent msg={msg} onImagePress={onImagePress} />}
             <TextContent text={msg.text} textColor={textColor} bubbleBg={bubbleBg} />
           </View>
         )}
@@ -145,6 +176,8 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 10.5, color: '#9ca3af', fontWeight: '500' },
   sticker: { width: 110, height: 110 },
   mediaImage: { width: 200, height: 150, borderRadius: 10, marginBottom: 6 },
+  videoThumb: { backgroundColor: '#1f2937', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  playBadge: { width: 46, height: 46, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   typingBubble: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderBottomLeftRadius: 4 },
   typingDot: { width: 6, height: 6, borderRadius: 999 },
   systemWrap: { alignItems: 'center', marginVertical: 14 },

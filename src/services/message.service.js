@@ -60,10 +60,10 @@ class MessageService {
     return res.data;
   }
 
-  // Mirrors the web app's signed-upload flow: fetch a Cloudinary signature
-  // from our backend, then upload the picked asset straight to Cloudinary.
-  // `asset` is the object returned by expo-image-picker:
-  // { uri, mimeType, fileName, fileSize }
+  
+  
+  
+  
   async uploadFile(asset, folder = 'data', onProgress = null) {
     const MAX_FILE_SIZE = 8 * 1024 * 1024;
     if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE) {

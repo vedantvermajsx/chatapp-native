@@ -14,8 +14,8 @@ const TABS = [
   { id: 'gifs', label: 'GIFs' },
 ];
 
-// Mirrors the web app's Klipy-powered sticker/GIF picker: trending feed,
-// debounced search, infinite scroll, tabbed between stickers and gifs.
+
+
 export default function StickerPicker({ onStickerSelect, onClose }) {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('stickers');
@@ -48,7 +48,7 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
       setHasNext(next);
       setPage(pg);
     } catch (e) {
-      // swallow network errors, show empty state
+      
     } finally {
       loadingRef.current = false;
       setLoading(false);

@@ -3,8 +3,8 @@ import { TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 
-// Mirrors the web app's ChatVoiceRecorder: tap to start/stop recording a
-// voice message, hands the finished file back via onAudioReady.
+
+
 export default function ChatVoiceRecorder({ onAudioReady, theme, isRecording, setIsRecording }) {
   const recordingRef = useRef(null);
 

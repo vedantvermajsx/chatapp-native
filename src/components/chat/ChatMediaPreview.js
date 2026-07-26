@@ -3,10 +3,10 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { toDisplayUrl } from '../../utils/imageUrl';
 
-// Mirrors the web app's ChatMediaPreview: a small card above the input
-// showing the attached image/video/audio plus a remove button. The asset
-// hasn't been uploaded yet at this point (upload happens on Send), so
-// images are shown straight from their local file URI.
+
+
+
+
 export default function ChatMediaPreview({ media, onRemove, theme }) {
   if (!media) return null;
 

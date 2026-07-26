@@ -3,8 +3,8 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toDisplayUrl } from '../../utils/imageUrl';
 
-// Mirrors web's Avatar.jsx: shows the user/room image when available,
-// falls back to an initial-letter badge, with an optional online dot.
+
+
 export default function Avatar({ url, name, size = 40, isOnline, style }) {
   const { theme } = useTheme();
   const accent = theme.primary || theme.myMessageBubble || '#008080';

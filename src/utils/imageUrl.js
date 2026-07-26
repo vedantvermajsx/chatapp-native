@@ -1,11 +1,27 @@
-// Cloudinary can re-serve any uploaded asset in a different format just by
-// swapping the file extension in the URL. The web app stores/serves avatars
-// and media as `.avif`, which React Native's <Image> can't decode on most
-// devices/OS versions (no native AVIF support), so images silently fail to
-// render. This coerces any Cloudinary URL to a broadly-supported format
-// before handing it to <Image>.
+
+
+
+
+
+
 export function toDisplayUrl(url) {
   if (!url || typeof url !== 'string') return url;
   if (!url.includes('cloudinary.com')) return url;
   return url.replace(/\.(avif|webp)(\?.*)?$/i, '.jpg$2');
+}
+
+
+
+export function addAttachmentFlag(url, filename) {
+  if (!url || !url.includes('/upload/')) return url;
+  const encodedName = encodeURIComponent(filename);
+  return url.replace(
+    /\/upload\/((?:(?!\/v\d+\/).)*)?(\/v\d+\/)/,
+    (_, transformations = '', version) => {
+      const prefix = transformations
+        ? `fl_attachment:${encodedName},${transformations}`
+        : `fl_attachment:${encodedName}`;
+      return `/upload/${prefix}${version}`;
+    }
+  );
 }

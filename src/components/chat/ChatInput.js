@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Avatar from '../common/Avatar';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -166,7 +166,11 @@ export default function ChatInput({
               onPress={() => setShowStickerPicker((v) => !v)}
               disabled={disabled || isRecording}
             >
-              <Ionicons name={showStickerPicker ? 'happy' : 'happy-outline'} size={22} color={theme.otherUsernameColor} />
+              <MaterialCommunityIcons
+                name={showStickerPicker ? 'sticker-emoji' : 'sticker-outline'}
+                size={22}
+                color={showStickerPicker ? theme.myMessageBubble : theme.otherUsernameColor}
+              />
             </TouchableOpacity>
           )}
 
