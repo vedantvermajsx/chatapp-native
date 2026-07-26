@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -81,8 +81,6 @@ export default function ChatInput({
     onSend();
   };
 
-  // Attaching/recording only stages the asset locally (for preview); the
-  // actual upload happens on Send, mirroring the web app's flow.
   const handleAttach = async () => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -140,8 +138,7 @@ export default function ChatInput({
       )}
 
       <View style={styles.row}>
-        {user && <Avatar url={user.avatar} name={user.username} size={36} style={{ marginRight: 8 }} />}
-        <View style={[styles.inputPill, { backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937' }]}>
+         <View style={[styles.inputPill, { backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937' }]}>
           <TouchableOpacity style={styles.pillIconBtn} onPress={handleAttach} disabled={disabled || !!pendingMedia || isRecording}>
             <Ionicons name="attach-outline" size={22} color={theme.otherUsernameColor} />
           </TouchableOpacity>
@@ -198,7 +195,7 @@ export default function ChatInput({
 }
 
 const styles = StyleSheet.create({
-  wrap: { borderTopWidth: 1, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 8, position: 'relative' },
+  wrap: { borderTopWidth: 0, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 8, position: 'relative' },
   row: { flexDirection: 'row', alignItems: 'flex-end' },
   inputPill: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', borderRadius: 22, paddingHorizontal: 6, paddingVertical: 4 },
   pillIconBtn: { paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },

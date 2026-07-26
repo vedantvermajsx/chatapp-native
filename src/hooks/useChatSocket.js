@@ -55,6 +55,18 @@ export function disconnectSocket() {
   sharedUserId = null;
 }
 
+// Tracks which chat (room_x / private_y) is the actively open ChatScreen,
+// shared across screens the same way sharedSocket is. Lets RoomListScreen
+// avoid flashing a badge for the chat the user is currently sitting in
+// while still catching up correctly once they navigate away.
+let activeChatKey = null;
+export function setActiveChatKey(key) {
+  activeChatKey = key || null;
+}
+export function getActiveChatKey() {
+  return activeChatKey;
+}
+
 export const useChatSocket = (user, {
   currentRoom,
   currentPrivateChat,

@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { useChatSocket } from '../hooks/useChatSocket';
+import { useChatSocket, setActiveChatKey } from '../hooks/useChatSocket';
 import messageService from '../services/message.service';
 import roomService from '../services/room.service';
 import { applyLastRead } from '../utils/applyLastRead';
@@ -123,6 +123,12 @@ export default function ChatScreen({ route, navigation }) {
       setLoadingMessages(false);
     }
   }, [otherUserId, myId]);
+
+  useEffect(() => {
+    const key = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
+    setActiveChatKey(key);
+    return () => setActiveChatKey(null);
+  }, [roomId, otherUserId]);
 
   useEffect(() => {
     if (roomId) loadRoomMessages();
@@ -478,10 +484,6 @@ export default function ChatScreen({ route, navigation }) {
           onStickerSend={handleStickerSend}
         />
       </KeyboardAvoidingView>
-      {/* Kept outside KeyboardAvoidingView on purpose: when it lived inside,
-          its bottom safe-area inset got added on top of the padding the
-          KeyboardAvoidingView already adds for the keyboard, pushing the
-          input ~15px higher than needed the moment the keyboard opened. */}
       <SafeAreaView edges={['bottom']} style={{ backgroundColor: theme.background }} />
 
       {currentRoom && (

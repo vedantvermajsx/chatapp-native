@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Alert, TextInput, Modal, Pressable, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Alert, TextInput, Modal, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import roomService from '../services/room.service';
 import messageService from '../services/message.service';
-import { useChatSocket } from '../hooks/useChatSocket';
+import { useChatSocket, getActiveChatKey } from '../hooks/useChatSocket';
 import Avatar from '../components/common/Avatar';
 import Spinner from '../components/common/Spinner';
 import UserSettingsModal from '../components/chat/Modals/UserSettingsModal';
@@ -152,13 +152,11 @@ export default function RoomListScreen({ navigation }) {
 
   const loadUnread = useCallback(async () => {
     const counts = await roomService.getUnreadCounts();
-    if (counts && typeof counts === 'object') {
-      setUnreadCounts((prev) => ({ ...prev, ...counts }));
-    }
+    setUnreadCounts(counts && typeof counts === 'object' ? counts : {});
   }, []);
 
   const handleUnreadUpdate = useCallback(({ chatKey } = {}) => {
-    if (!chatKey) return;
+    if (!chatKey || chatKey === getActiveChatKey()) return;
     setUnreadCounts((prev) => ({ ...prev, [chatKey]: (prev[chatKey] || 0) + 1 }));
   }, []);
 
@@ -315,9 +313,6 @@ export default function RoomListScreen({ navigation }) {
   const renderSidebarHeader = () => (
     <View style={[styles.sidebarHeader, { borderBottomColor: borderColor }]}>
       <View style={styles.sidebarHeaderInner}>
-        <View style={[styles.appIconBadge, { backgroundColor: `${accent}1A` }]}>
-          <Ionicons name="chatbubbles" size={18} color={accent} />
-        </View>
         <Text style={[styles.appName, { color: theme.otherMessageText }]}>GatherUp</Text>
       </View>
     </View>
@@ -402,11 +397,6 @@ export default function RoomListScreen({ navigation }) {
         {unread > 0 && (
           <View style={[styles.unreadBadge, { backgroundColor: accent }]}>
             <Text style={styles.unreadBadgeText}>{unread > 99 ? '99+' : unread}</Text>
-          </View>
-        )}
-        {!isJoined && (
-          <View style={[styles.joinBadge, { backgroundColor: `${accent}14` }]}>
-            {isJoining ? <Spinner size="small" color={accent} /> : <Ionicons name="add" size={16} color={accent} />}
           </View>
         )}
       </TouchableOpacity>
@@ -515,14 +505,14 @@ export default function RoomListScreen({ navigation }) {
         <Avatar url={user?.avatar} name={user?.username} size={32} />
         <Text style={[styles.footerUsername, { color: theme.otherMessageText }]} numberOfLines={1}>{user?.username || 'Guest'}</Text>
       </TouchableOpacity>
-      <View style={{ flexDirection: 'row', gap: 4 }}>
+      <View style={{ flexDirection: 'row', gap: 12 }}>
         {user?.role !== 'guest' && (
           <TouchableOpacity style={styles.footerIconBtn} onPress={() => setShowUserSettings(true)}>
-            <Ionicons name="settings-outline" size={17} color={theme.otherUsernameColor} />
+            <Ionicons name="settings-outline" size={22} color={theme.otherUsernameColor} />
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.footerIconBtn} onPress={() => setShowThemePicker(true)}>
-          <Ionicons name="color-palette-outline" size={17} color={theme.otherUsernameColor} />
+          <Ionicons name="color-palette-outline" size={22} color={theme.otherUsernameColor} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.footerIconBtn}
@@ -531,7 +521,7 @@ export default function RoomListScreen({ navigation }) {
             { text: 'Logout', style: 'destructive', onPress: logout }
           ])}
         >
-          <Ionicons name="log-out-outline" size={17} color="#ef4444" />
+          <Ionicons name="log-out-outline" size={22} color="#ef4444" />
         </TouchableOpacity>
       </View>
     </View>
@@ -605,15 +595,15 @@ export default function RoomListScreen({ navigation }) {
 
           {/* Theme Picker Modal */}
           <Modal visible={showThemePicker} animationType="slide" transparent onRequestClose={() => setShowThemePicker(false)}>
-            <Pressable style={styles.modalBackdrop} onPress={() => setShowThemePicker(false)}>
-              <View style={[styles.themeCard, { backgroundColor: theme.background, borderColor }]}>
+            <View style={[styles.modalBackdrop, { backgroundColor: 'transparent' }]}>
+              <View style={[styles.themeCard, { backgroundColor: theme.background, borderColor, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                 <View style={styles.themeHeader}>
                   <Text style={[styles.modalTitle, { color: theme.otherMessageText }]}>Appearance</Text>
-                  <TouchableOpacity onPress={() => setShowThemePicker(false)}>
-                    <Ionicons name="close" size={22} color={theme.otherMessageText} />
+                  <TouchableOpacity style={{ padding: 8, borderRadius: 20, backgroundColor: 'transparent' }} onPress={() => setShowThemePicker(false)}>
+                    <Ionicons name="close" size={28} color={theme.otherMessageText} />
                   </TouchableOpacity>
                 </View>
-                <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ maxHeight: 420, paddingVertical: 10 }} showsVerticalScrollIndicator={false}>
                   <View style={styles.themeGrid}>
                     {THEMES.map(t => {
                       const selected = t.id === theme.id;
@@ -623,10 +613,10 @@ export default function RoomListScreen({ navigation }) {
                           style={[
                             styles.themeCardItem,
                             { backgroundColor: t.background, borderColor: selected ? accent : (theme.isLight ? '#e5e7eb' : '#374151') },
-                            selected && { borderWidth: 2 }
+                            selected && { borderWidth: 1 }
                           ]}
                           onPress={() => setTheme(t)}
-                          activeOpacity={0.7}
+                          activeOpacity={0}
                         >
                           <View style={styles.themePreviewRow}>
                             <View style={[styles.bubblePreview, styles.bubbleOther, { backgroundColor: t.otherMessageBubble }]}>
@@ -650,7 +640,7 @@ export default function RoomListScreen({ navigation }) {
                   </View>
                 </ScrollView>
               </View>
-            </Pressable>
+            </View>
           </Modal>
 
           <UserSettingsModal
@@ -667,13 +657,13 @@ export default function RoomListScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  sidebarHeader: { alignItems: 'center', justifyContent: 'center', paddingTop: 12, paddingBottom: 12, borderBottomWidth: 1 },
+  sidebarHeader: { alignItems: 'center', justifyContent: 'center', paddingTop: 12, paddingBottom: 12, borderBottomWidth: 0 },
   sidebarHeaderInner: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   appIconBadge: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  appName: { fontSize: 18, fontWeight: '700', letterSpacing: -0.2 },
+  appName: { fontSize: 20, fontWeight: '700', letterSpacing: 0.8 },
   searchWrapper: { paddingHorizontal: 16, paddingVertical: 12 },
-  searchInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
-  searchInput: { flex: 1, fontSize: 14 },
+  searchInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 2 },
+  searchInput: { flex: 1, fontSize: 12 },
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tab: { flex: 1, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -710,10 +700,10 @@ const styles = StyleSheet.create({
   modalBtnPrimary: {},
   modalBtnTextSecondary: { fontWeight: '600', fontSize: 14 },
   modalBtnTextPrimary: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  themeCard: { width: '100%', maxWidth: 420, borderRadius: 20, padding: 20, borderWidth: 1 },
+  themeCard: { width: '100%', maxWidth: 420, borderRadius: 20, padding: 15, borderWidth: 1 },
   themeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   themeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  themeCardItem: { width: '31%', aspectRatio: 1.1, borderRadius: 14, padding: 10, borderWidth: 1, alignItems: 'center', position: 'relative' },
+  themeCardItem: { width: '30%', aspectRatio: 1, borderRadius: 14, padding: 10, borderWidth: 1, alignItems: 'center', position: 'relative' },
   themePreviewRow: { flexDirection: 'row', gap: 4, marginBottom: 8 },
   bubblePreview: { minWidth: 26, maxWidth: 34, height: 18, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   bubbleOther: { borderTopLeftRadius: 2, alignSelf: 'flex-start' },
