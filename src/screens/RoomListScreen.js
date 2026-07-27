@@ -100,9 +100,6 @@ export default function RoomListScreen({ navigation }) {
     }
   }, []);
 
-  // Keep the Groups/Explore lists in sync with server-pushed room events
-  // (a room I just joined, someone renaming/deleting a room, etc.) instead
-  // of only refreshing on manual pull-to-refresh.
   const handleRoomEvent = useCallback((evt) => {
     if (!evt) return;
     if (evt.type === 'new') {
@@ -479,7 +476,7 @@ export default function RoomListScreen({ navigation }) {
       contentContainerStyle={{ paddingBottom: 24 }}
     >
       {renderSectionHeader('Groups')}
-      {loadingRooms ? (
+      {loadingRooms && filteredJoined.length === 0 ? (
         <View style={{ padding: 24 }}><Spinner size="large" /></View>
       ) : filteredJoined.length === 0 ? (
         <Text style={styles.emptyInline}>Join a group from Explore</Text>
@@ -488,7 +485,7 @@ export default function RoomListScreen({ navigation }) {
       )}
 
       {renderSectionHeader('Private Chats')}
-      {loadingPrivate ? (
+      {loadingPrivate && filteredPrivate.length === 0 ? (
         <View style={{ padding: 24 }}><Spinner size="large" /></View>
       ) : filteredPrivate.length === 0 ? (
         <Text style={styles.emptyInline}>No private chats yet</Text>
@@ -636,7 +633,7 @@ export default function RoomListScreen({ navigation }) {
                     <Ionicons name="close" size={28} color={theme.otherMessageText} />
                   </TouchableOpacity>
                 </View>
-                <ScrollView style={{ maxHeight: 420, paddingVertical: 10 }} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ maxHeight: 420, paddingVertical: 10,}} showsVerticalScrollIndicator={false}>
                   <View style={styles.themeGrid}>
                     {THEMES.map(t => {
                       const selected = t.id === theme.id;

@@ -167,9 +167,9 @@ export default function ChatInput({
               disabled={disabled || isRecording}
             >
               <MaterialCommunityIcons
-                name={showStickerPicker ? 'sticker-emoji' : 'sticker-outline'}
+                name={'sticker-emoji'}
                 size={22}
-                color={showStickerPicker ? theme.myMessageBubble : theme.otherUsernameColor}
+                color={theme.otherUsernameColor}
               />
             </TouchableOpacity>
           )}
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   wrap: { borderTopWidth: 0, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 8, position: 'relative' },
   row: { flexDirection: 'row', alignItems: 'flex-end' },
   inputPill: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', borderRadius: 22, paddingHorizontal: 6, paddingVertical: 4 },
-  pillIconBtn: { paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
+  pillIconBtn: { paddingHorizontal: 6,paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
   textInput: { flex: 1, paddingHorizontal: 4, paddingVertical: 6, fontSize: 15, maxHeight: 110, minHeight: 30, textAlignVertical: 'center' },
   recordingRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4 },
   recordDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#ef4444' },

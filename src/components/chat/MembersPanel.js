@@ -107,7 +107,7 @@ export default function MembersPanel({ visible, onClose, members, admin, current
   return (
     <Modal visible={rendered} animationType="none" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', opacity: backdropOpacity }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.0)', opacity: backdropOpacity }]}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         </Animated.View>
         <Animated.View style={[styles.panel, { backgroundColor: theme.background, borderColor, transform: [{ translateX }] }]}>
@@ -175,11 +175,11 @@ export default function MembersPanel({ visible, onClose, members, admin, current
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
-  panel: { width: '82%', maxWidth: 340, height: '100%', borderLeftWidth: 1 },
+  panel: { width: '90%', maxWidth: 440, height: '100%', maxHeight: 1500, borderRadius:10, borderLeftWidth: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1 },
   title: { fontSize: 17, fontWeight: '700' },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 12, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 },
-  searchInput: { flex: 1, fontSize: 13.5 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 8, marginTop: 8, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4 },
+  searchInput: { flex: 1, fontSize: 12.5 },
   sectionTitle: { fontSize: 12.5, fontWeight: '700', marginBottom: 8, marginLeft: 4 },
   memberRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 14, borderWidth: 1, marginBottom: 8 },
   memberName: { fontSize: 14, fontWeight: '600' },

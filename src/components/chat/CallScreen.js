@@ -1,23 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+//import { RTCView } from 'react-native-webrtc';
 import Avatar from '../common/Avatar';
+import { useCall } from '../../contexts/CallContext';
 
-export default function CallScreen({ visible, target, isVideo, onEnd }) {
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
+export default function CallScreen() {
+  const {
+    callState,
+    isVideo,
+    peer,
+    localStream,
+    remoteStream,
+    isMuted,
+    isCameraOff,
+    error,
+    clearError,
+    endCall,
+    toggleMute,
+    toggleCamera,
+    switchCamera,
+  } = useCall();
+
   const [seconds, setSeconds] = useState(0);
+  const visible = callState === 'outgoing' || callState === 'connected';
 
   useEffect(() => {
-    if (!visible) {
+    if (callState !== 'connected') {
       setSeconds(0);
-      setIsMuted(false);
-      setIsVideoOff(false);
       return;
     }
     const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
-  }, [visible]);
+  }, [callState]);
+
+  useEffect(() => {
+    if (error) {
+      const t = setTimeout(clearError, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [error, clearError]);
+
+  if (!visible) return null;
 
   const durationStr = () => {
     const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
@@ -26,44 +50,72 @@ export default function CallScreen({ visible, target, isVideo, onEnd }) {
     return `${h}:${m}:${s}`;
   };
 
-  if (!visible) return null;
+  const statusText =
+    callState === 'outgoing'
+      ? 'Calling\u2026'
+      : isVideo
+      ? `Video call \u00b7 ${durationStr()}`
+      : `Audio call \u00b7 ${durationStr()}`;
+
+  const showRemoteVideo = isVideo && remoteStream && callState === 'connected';
+  const showLocalVideo = isVideo && localStream && !isCameraOff;
 
   return (
-    <Modal visible={visible} animationType="fade" transparent={false} onRequestClose={onEnd}>
+    <Modal visible animationType="fade" transparent={false} onRequestClose={endCall}>
       <View style={styles.screen}>
-        <View style={styles.content}>
-          <View style={styles.glow} />
-          <Avatar url={target?.avatar} name={target?.username} size={112} style={{ marginBottom: 20 }} />
-          <Text style={styles.name}>{target?.username}</Text>
-          <Text style={styles.status}>
-            {seconds < 1 ? 'Calling\u2026' : isVideo ? `Video call \u00b7 ${durationStr()}` : `Audio call \u00b7 ${durationStr()}`}
-          </Text>
+        {showRemoteVideo ? (
+          <RTCView streamURL={remoteStream.toURL()} style={StyleSheet.absoluteFill} objectFit="cover" />
+        ) : (
+          <View style={styles.content}>
+            <View style={styles.glow} />
+            <Avatar url={peer?.avatar} name={peer?.username} size={112} style={{ marginBottom: 20 }} />
+            <Text style={styles.name}>{peer?.username}</Text>
+            <Text style={styles.status}>{statusText}</Text>
+          </View>
+        )}
 
-          {isVideo && !isVideoOff && (
-            <View style={styles.selfPreview}>
-              <Ionicons name="person" size={26} color="rgba(255,255,255,0.5)" />
-            </View>
-          )}
-        </View>
+        {showRemoteVideo && (
+          <View style={styles.topOverlay}>
+            <Text style={styles.overlayName}>{peer?.username}</Text>
+            <Text style={styles.overlayStatus}>{durationStr()}</Text>
+          </View>
+        )}
+
+        {error ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {showLocalVideo && (
+          <TouchableOpacity style={styles.selfPreview} onPress={switchCamera} activeOpacity={0.85}>
+            <RTCView streamURL={localStream.toURL()} style={StyleSheet.absoluteFill} objectFit="cover" mirror />
+          </TouchableOpacity>
+        )}
+        {isVideo && !showLocalVideo && !showRemoteVideo && (
+          <View style={styles.selfPreview}>
+            <Ionicons name="videocam-off" size={22} color="rgba(255,255,255,0.5)" />
+          </View>
+        )}
 
         <View style={styles.controls}>
           <TouchableOpacity
             style={[styles.controlBtn, isMuted && styles.controlBtnActive]}
-            onPress={() => setIsMuted((v) => !v)}
+            onPress={toggleMute}
           >
             <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={22} color={isMuted ? '#f87171' : '#fff'} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.endBtn} onPress={onEnd}>
+          <TouchableOpacity style={styles.endBtn} onPress={endCall}>
             <Ionicons name="call" size={28} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
           </TouchableOpacity>
 
           {isVideo ? (
             <TouchableOpacity
-              style={[styles.controlBtn, isVideoOff && styles.controlBtnActive]}
-              onPress={() => setIsVideoOff((v) => !v)}
+              style={[styles.controlBtn, isCameraOff && styles.controlBtnActive]}
+              onPress={toggleCamera}
             >
-              <Ionicons name={isVideoOff ? 'videocam-off' : 'videocam'} size={22} color={isVideoOff ? '#f87171' : '#fff'} />
+              <Ionicons name={isCameraOff ? 'videocam-off' : 'videocam'} size={22} color={isCameraOff ? '#f87171' : '#fff'} />
             </TouchableOpacity>
           ) : (
             <View style={{ width: 50 }} />
@@ -86,6 +138,26 @@ const styles = StyleSheet.create({
   },
   name: { color: '#fff', fontSize: 22, fontWeight: '600' },
   status: { color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 4 },
+  topOverlay: {
+    position: 'absolute',
+    top: 56,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  overlayName: { color: '#fff', fontSize: 16, fontWeight: '600', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
+  overlayStatus: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
+  errorBanner: {
+    position: 'absolute',
+    top: 56,
+    left: 24,
+    right: 24,
+    backgroundColor: 'rgba(239,68,68,0.9)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  errorText: { color: '#fff', fontSize: 13, fontWeight: '600' },
   selfPreview: {
     position: 'absolute',
     bottom: 130,
@@ -93,6 +165,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 130,
     borderRadius: 18,
+    overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',

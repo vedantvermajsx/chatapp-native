@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, Text, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -10,6 +10,14 @@ import messageService from '../services/message.service';
 import roomService from '../services/room.service';
 import { applyLastRead } from '../utils/applyLastRead';
 import { dbService } from '../services/localDB.service';
+import { 
+  _refreshLastReadStatus, 
+  _fetchNewRoomMessages, 
+  _fetchNewPrivateMessages, 
+  normalizeIncomingRoomMessage, 
+  normalizeIncomingPrivateMessage, 
+  reconcileIncoming 
+} from '../utils/chatHelpers';
 
 import ChatHeader from '../components/chat/ChatHeader';
 import MessageBubble, { SystemMessage, TypingIndicator } from '../components/chat/Message';
@@ -17,38 +25,33 @@ import ChatInput from '../components/chat/ChatInput';
 import MembersPanel from '../components/chat/MembersPanel';
 import GroupSettingsModal from '../components/chat/Modals/GroupSettingsModal';
 import ImageZoomModal from '../components/chat/Modals/ImageZoomModal';
-import CallScreen from '../components/chat/CallScreen';
+import { useCall } from '../contexts/CallContext';
 
 export default function ChatScreen({ route, navigation }) {
   const { room: initialRoom, privateChat: initialPrivateChat } = route.params || {};
   const { user } = useAuth();
   const { theme } = useTheme();
-
   const [currentRoom, setCurrentRoom] = useState(initialRoom || null);
   const [currentPrivateChat, setCurrentPrivateChat] = useState(initialPrivateChat || null);
-
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loadingMessages, setLoadingMessages] = useState(!!(initialRoom || initialPrivateChat));
   const [pendingMedia, setPendingMedia] = useState(null);
-
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [zoomMedia, setZoomMedia] = useState(null);
   const [leaving, setLeaving] = useState(false);
-  const [call, setCall] = useState({ visible: false, isVideo: false });
+  const { startCall } = useCall();
   const [topInset, setTopInset] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
-
   const unreadCountRef = useRef(route.params?.unreadCount || 0);
   const listRef = useRef(null);
   const typingTargetRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emitMarkReadRef = useRef(() => {});
   const emitMarkRoomReadRef = useRef(() => {});
-
   const roomId = currentRoom?._id;
   const otherUserId = currentPrivateChat?.id;
   const myId = user?._id || user?.id;
@@ -185,7 +188,7 @@ export default function ChatScreen({ route, navigation }) {
     [roomId]
   );
 
-  // ---- Socket ---------------------------------------------------------
+  // -- Socket --
   const onRoomMessage = useCallback(
     (msg) => {
       if (String(msg.roomId) !== String(roomId)) return;
@@ -207,8 +210,6 @@ export default function ChatScreen({ route, navigation }) {
       setMessages((prev) => reconcileIncoming(prev, incoming));
       dbService.addMessage(`private_${otherId}`, incoming);
 
-      // Let the sender know we've seen it, mirroring the web app — without
-      
       if (!incoming.isOwn && !incoming.isSystemMessage) {
         emitMarkReadRef.current({
           senderId: msg.senderId,
@@ -220,8 +221,6 @@ export default function ChatScreen({ route, navigation }) {
     },
     [otherUserId, myId]
   );
-
-  
   
   const onReadReceipt = useCallback(
     ({ receiverId, messageId, lastSeenAt }) => {
@@ -325,11 +324,6 @@ export default function ChatScreen({ route, navigation }) {
     return { uuid, optimistic };
   };
 
-  // Flip the optimistic bubble from "pending" (clock icon) to "sent" using
-  // the REST response we already have, instead of waiting for the socket to
-  // echo the message back — for room messages the server only broadcasts
-  // `newMessage` to other members, not back to the sender, so relying on it
-  // left the clock icon stuck on every message the user sent in a group.
   const resolveOptimistic = useCallback((uuid, response, media) => {
     setMessages((prev) => {
       const idx = prev.findIndex((m) => m.uuid === uuid || m.id === uuid);
@@ -355,15 +349,34 @@ export default function ChatScreen({ route, navigation }) {
     setInputMessage('');
     setPendingMedia(null);
 
-    // Show the message immediately using the local file (if any) as a
-    // preview; the real upload happens in the background below.
-    const localPreview = localMedia ? { type: localMedia.type, url: localMedia.uri, isPending: true } : null;
+    const localPreview = localMedia
+      ? {
+          type: localMedia.type,
+          url: localMedia.uri,
+          isPending: true,
+          uploadProgress: 0,
+          duration: localMedia.duration,
+          waveform: localMedia.waveform,
+        }
+      : null;
     const { uuid } = sendOptimistic(text, localPreview);
 
     try {
       let finalMedia = null;
       if (localMedia) {
-        finalMedia = await messageService.uploadFile(localMedia, 'data');
+        const uploaded = await messageService.uploadFile(localMedia, 'data', (pct) => {
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.uuid === uuid);
+            if (idx === -1) return prev;
+            const next = [...prev];
+            next[idx] = { ...next[idx], media: { ...next[idx].media, uploadProgress: pct } };
+            return next;
+          });
+        });
+        // uploadFile only returns {url, type(+qualities)} -- carry over the
+        // real duration/waveform we captured at record time so the sent
+        // message keeps its actual voice pattern, not a placeholder.
+        finalMedia = { ...uploaded, duration: localMedia.duration, waveform: localMedia.waveform };
       }
 
       let response;
@@ -483,7 +496,7 @@ export default function ChatScreen({ route, navigation }) {
           }}
           onOpenGroupSettings={() => setShowGroupSettings(true)}
           onLeaveOrDelete={handleLeaveOrDelete}
-          onStartCall={(isVideo) => setCall({ visible: true, isVideo })}
+          onStartCall={(isVideo) => startCall(currentPrivateChat, isVideo)}
           leaving={leaving}
         />
       </View>
@@ -557,142 +570,8 @@ export default function ChatScreen({ route, navigation }) {
         mediaType={zoomMedia?.mediaType}
         onClose={() => setZoomMedia(null)}
       />
-
-      <CallScreen
-        visible={call.visible}
-        target={currentPrivateChat}
-        isVideo={call.isVideo}
-        onEnd={() => setCall({ visible: false, isVideo: false })}
-      />
     </View>
   );
-}
-
-
-
-
-
-
-
-
-
-async function _refreshLastReadStatus(otherUserId, myId, setMessages) {
-  try {
-    const { lastRead } = await messageService.getLastReadStatus(otherUserId);
-    if (!lastRead) return;
-    setMessages((prev) => applyLastRead(prev, lastRead));
-  } catch (e) {
-    
-  }
-}
-
-async function _fetchNewRoomMessages(roomId, cacheKey, existingRaw, myId, setMessages) {
-  try {
-    let merged = existingRaw;
-    let latestTimestamp = merged[merged.length - 1]?.timestamp;
-    if (!latestTimestamp) return;
-
-    let hasMore = true;
-    while (hasMore) {
-      const res = await messageService.getRoomMessages(roomId, 20, null, latestTimestamp);
-      hasMore = res.hasMore || false;
-      if (!res.messages?.length) break;
-
-      const existingIds = new Set(merged.map((m) => String(m._id || m.id)));
-      const reallyNew = res.messages.filter((m) => !existingIds.has(String(m._id || m.id)));
-      if (!reallyNew.length) break;
-
-      merged = [...merged, ...reallyNew];
-      await dbService.mergeNewMessages(cacheKey, reallyNew);
-      latestTimestamp = merged[merged.length - 1]?.timestamp || latestTimestamp;
-    }
-
-    setMessages(merged.map((m) => normalizeIncomingRoomMessage(m, myId)));
-  } catch (e) {
-    
-  }
-}
-
-async function _fetchNewPrivateMessages(otherUserId, cacheKey, existingRaw, myId, setMessages, emitMarkReadRef) {
-  try {
-    let merged = existingRaw;
-    let latestTimestamp = merged[merged.length - 1]?.timestamp;
-    if (!latestTimestamp) return;
-
-    let hasMore = true;
-    let lastRead = null;
-    while (hasMore) {
-      const res = await messageService.getPrivateMessages(otherUserId, 20, null, latestTimestamp);
-      hasMore = res.hasMore || false;
-      lastRead = res.lastRead ?? lastRead;
-
-      const existingIds = new Set(merged.map((m) => String(m._id || m.id)));
-      const reallyNew = (res.messages || []).filter((m) => !existingIds.has(String(m._id || m.id)));
-      if (!reallyNew.length) break;
-
-      merged = [...merged, ...reallyNew];
-      await dbService.mergeNewMessages(cacheKey, reallyNew);
-      latestTimestamp = merged[merged.length - 1]?.timestamp || latestTimestamp;
-    }
-
-    let normalized = merged.map((m) => normalizeIncomingPrivateMessage(m, myId));
-    if (lastRead) normalized = applyLastRead(normalized, lastRead);
-    setMessages(normalized);
-
-    const last = normalized[normalized.length - 1];
-    if (last && !last.isOwn && !last.isSystemMessage) {
-      emitMarkReadRef.current({ senderId: otherUserId, receiverId: myId, messageId: last.id, timestamp: last.timestamp });
-    }
-  } catch (e) {
-    
-  }
-}
-
-function normalizeIncomingRoomMessage(m, myId) {
-  const senderId = m.userId || m.senderId || m.sender?._id;
-  return {
-    id: m._id || m.id,
-    username: m.username || m.sender?.username,
-    avatar: m.avatar || m.sender?.avatar,
-    text: m.text ?? m.message ?? '',
-    media: m.media || null,
-    isOwn: m.isOwn ?? (senderId ? String(senderId) === String(myId) : false),
-    timestamp: m.timestamp || m.createdAt || new Date().toISOString(),
-    isSystemMessage: !!m.isSystemMessage,
-    systemType: m.systemType || null,
-    isPending: false,
-  };
-}
-
-function normalizeIncomingPrivateMessage(m, myId) {
-  const senderId = m.senderId;
-  return {
-    id: m._id || m.id,
-    username: m.senderUsername || m.username,
-    avatar: m.avatar,
-    text: m.text ?? m.content ?? '',
-    media: m.media || null,
-    isOwn: m.isOwn ?? (senderId ? String(senderId) === String(myId) : false),
-    timestamp: m.timestamp || m.createdAt || new Date().toISOString(),
-    isSystemMessage: !!m.isSystemMessage,
-    systemType: m.systemType || null,
-    isSeen: m.isSeen,
-    seenAt: m.seenAt,
-    isPending: false,
-  };
-}
-
-function reconcileIncoming(prev, incoming) {
-  if (incoming.id && prev.some((m) => String(m.id) === String(incoming.id))) return prev;
-  const optimisticIdx = prev.findIndex(
-    (m) => m.isOwn && m.isPending && m.text === incoming.text && !!m.media === !!incoming.media
-  );
-  if (incoming.isOwn && optimisticIdx !== -1) {
-    const next = [...prev];
-    next[optimisticIdx] = incoming;
-    return next;
-  }
-  return [...prev, incoming];
 }
 
 const styles = StyleSheet.create({

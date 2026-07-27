@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import authService from '../services/auth.service';
+import { SHARED_BG, SHARED_FORM } from '../styles/sharedAuthStyles';
 
 const GENDERS = [
   { label: 'Male', value: 0 },
@@ -105,17 +106,6 @@ export default function RegisterScreen({ navigation }) {
     <View style={styles.root}>
       <View style={styles.background}>
         <View style={styles.gradientGlow} />
-        <View style={[styles.previewRow, styles.previewRowTop]}>
-          <View style={[styles.previewBubble, styles.previewBubbleOther, { opacity: 0.45 }]}>
-            <Text style={styles.previewBubbleText}>did you see the new design room?</Text>
-          </View>
-          <View style={[styles.previewBubble, styles.previewBubbleMine, { backgroundColor: accent, alignSelf: 'flex-end', opacity: 0.3 }]}>
-            <Text style={[styles.previewBubbleText, { color: '#fff' }]}>just joined</Text>
-          </View>
-          <View style={[styles.previewBubble, styles.previewBubbleOther, { opacity: 0.2 }]}>
-            <Text style={styles.previewBubbleText}>perfect timing, we're gathering up now</Text>
-          </View>
-        </View>
       </View>
 
       <SafeAreaView style={{ flex: 0 }} edges={['top']} />
@@ -128,15 +118,6 @@ export default function RegisterScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.topBrand}>
-            <View style={[styles.heroBadge, { backgroundColor: 'rgba(0,128,128,0.15)' }]}>
-              <Ionicons name="person-add" size={22} color={accent} />
-            </View>
-            <Text style={styles.heroTitle}>Create your</Text>
-            <Text style={[styles.heroTitle, { color: accent }]}>account</Text>
-            <Text style={styles.heroSub}>Set up your space in less than a minute.</Text>
-          </View>
-
           <View style={styles.card}>
             <TouchableOpacity
               style={styles.backBtn}
@@ -157,8 +138,8 @@ export default function RegisterScreen({ navigation }) {
             ) : null}
 
             <View>
-              <View style={[styles.inputWrapper, { borderColor: '#e5e7eb', backgroundColor: '#ffffff' }]}>
-                <Ionicons name="person-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
+           <View style={[styles.inputWrapper, { borderColor: 'transparent',borderBottomColor: '#00ffff', backgroundColor: 'transparent' }]}>
+              <Ionicons name="person-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Username"
@@ -170,11 +151,11 @@ export default function RegisterScreen({ navigation }) {
                   editable={!loading}
                 />
               </View>
-              <View style={{ height: 22 }}>{renderUsernameStatus()}</View>
+              <View style={{ height: 25 }}>{renderUsernameStatus()}</View>
             </View>
 
-            <View style={[styles.inputWrapper, { borderColor: '#e5e7eb', backgroundColor: '#ffffff' }]}>
-              <Ionicons name="mail-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
+           <View style={[styles.inputWrapper, { borderColor: 'transparent',borderBottomColor: '#00ffff', backgroundColor: 'transparent' }]}>
+             <Ionicons name="mail-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Email"
@@ -188,7 +169,22 @@ export default function RegisterScreen({ navigation }) {
               />
             </View>
 
-            <View style={[styles.inputWrapper, { borderColor: '#e5e7eb', backgroundColor: '#ffffff', paddingVertical: 2 }]}>
+ <View style={[styles.inputWrapper, { borderColor: 'transparent',borderBottomColor: '#00ffff', backgroundColor: 'transparent' }]}>
+              <Ionicons name="lock-closed-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password (6-50 characters)"
+                placeholderTextColor="#9ca3af"
+                secureTextEntry
+                value={password}
+                onChangeText={(t) => { setPassword(t); if (error) setError(''); }}
+                editable={!loading}
+              />
+            </View>
+
+
+           <View style={[styles.inputWrapper, { borderColor: 'transparent', backgroundColor: 'transparent' }]}>
+          
               <Ionicons name="people-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
               <View style={styles.genderInInputRow}>
                 {GENDERS.map((g) => (
@@ -210,19 +206,6 @@ export default function RegisterScreen({ navigation }) {
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
-
-            <View style={[styles.inputWrapper, { borderColor: '#e5e7eb', backgroundColor: '#ffffff' }]}>
-              <Ionicons name="lock-closed-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password (6-50 characters)"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                value={password}
-                onChangeText={(t) => { setPassword(t); if (error) setError(''); }}
-                editable={!loading}
-              />
             </View>
 
             <TouchableOpacity
@@ -269,18 +252,6 @@ export default function RegisterScreen({ navigation }) {
               <View style={styles.divider} />
             </View>
 
-            <TouchableOpacity
-              style={[styles.secondaryButton, { borderColor: '#e5e7eb', backgroundColor: '#ffffff' }]}
-              onPress={() => navigation.navigate('Guest')}
-              disabled={loading}
-              activeOpacity={0.6}
-            >
-              <View style={styles.buttonRow}>
-                <Ionicons name="person-outline" size={18} color="#374151" />
-                <Text style={styles.secondaryButtonText}>Continue as guest</Text>
-              </View>
-            </TouchableOpacity>
-
             <TouchableOpacity style={styles.footerLink} onPress={() => navigation.navigate('Login')} disabled={loading}>
               <Text style={styles.footerTextGray}>Already have an account? </Text>
               <Text style={[styles.footerLinkText, { color: accent }]}>Log in</Text>
@@ -293,71 +264,35 @@ export default function RegisterScreen({ navigation }) {
   );
 }
 
-const SHARED_BG = {
-  root: { flex: 1, backgroundColor: '#060a04', position: 'relative' },
-  background: { ...StyleSheet.absoluteFillObject, backgroundColor: '#060a04', overflow: 'hidden' },
-  gradientGlow: {
-    position: 'absolute', top: -200, left: -120, width: 500, height: 500, borderRadius: 250,
-    backgroundColor: 'rgba(0,128,128,0.28)'
-  },
-  previewRowTop: { position: 'absolute', top: 90, left: 28, right: 28, gap: 8 },
-  previewRow: { maxWidth: 320 },
-  previewBubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, maxWidth: '85%' },
-  previewBubbleOther: {
-    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    alignSelf: 'flex-start', borderBottomLeftRadius: 4
-  },
-  previewBubbleMine: { alignSelf: 'flex-end', borderBottomRightRadius: 4 },
-  previewBubbleText: { fontSize: 13, color: 'rgba(255,255,255,0.85)' },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20, alignItems: 'center' },
-  topBrand: { alignItems: 'flex-start', alignSelf: 'stretch', marginTop: 24, marginBottom: 20, maxWidth: 420 },
-  heroBadge: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  heroTitle: { fontSize: 26, fontWeight: '700', color: 'rgba(255,255,255,0.82)', lineHeight: 32, letterSpacing: -0.3 },
-  card: {
-    width: '100%', maxWidth: 420, backgroundColor: '#ffffff', borderRadius: 22, padding: 24,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 10
-  }
-};
-
-const SHARED_FORM = {
-  backBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingVertical: 4, marginBottom: 12, gap: 5 },
-  backBtnText: { color: '#6b7280', fontSize: 13 },
-  title: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 6, letterSpacing: -0.3 },
-  subtitle: { fontSize: 14.5, color: '#6b7280', marginBottom: 22 },
-  errorBanner: { backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 },
-  errorText: { color: '#dc2626', fontSize: 13, textAlign: 'center' },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, marginBottom: 10, paddingHorizontal: 10, paddingVertical: 2 },
-  inputIcon: { paddingHorizontal: 6 },
-  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: '#111827' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2, marginBottom: 8 },
-  statusTextChecking: { color: '#6b7280', fontSize: 12 },
-  statusTextAvailable: { color: '#059669', fontSize: 12 },
-  statusTextError: { color: '#dc2626', fontSize: 12, marginTop: 2, marginBottom: 8 },
-  genderInInputRow: { flex: 1, flexDirection: 'row', gap: 6, paddingVertical: 6, paddingRight: 6 },
-  genderChip: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  genderChipSelected: { backgroundColor: 'rgba(0,128,128,0.10)' },
-  genderChipText: { fontSize: 13, color: '#374151', fontWeight: '500' },
-  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 8, marginBottom: 20, paddingHorizontal: 4 },
-  checkBox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: '#d1d5db', marginTop: 2, alignItems: 'center', justifyContent: 'center' },
-  checkBoxChecked: { backgroundColor: '#008080', borderColor: '#008080' },
-  termsText: { fontSize: 13, color: '#4b5563', lineHeight: 18, flex: 1 },
-  termsLink: { fontWeight: '600' },
-  primaryButton: { borderRadius: 10, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  buttonDisabled: { opacity: 0.55 },
-  buttonRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  primaryButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
-  secondaryButton: { borderWidth: 1, borderRadius: 10, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', marginBottom: 22 },
-  secondaryButtonText: { color: '#374151', fontSize: 15, fontWeight: '600' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18, gap: 10 },
-  divider: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { color: '#9ca3af', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  footerLink: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  footerTextGray: { color: '#6b7280', fontSize: 14 },
-  footerLinkText: { fontSize: 14, fontWeight: '600' }
-};
 
 const styles = StyleSheet.create({
   ...SHARED_BG,
-  heroSub: { marginTop: 8, fontSize: 14, color: 'rgba(255,255,255,0.5)' },
-  ...SHARED_FORM
+  ...SHARED_FORM,
+  primaryButton: {
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    marginBottom: 18
+  },
+  topBrand: {
+    position: 'absolute',
+    alignItems: 'flex-start',
+    alignSelf: 'stretch',
+    marginTop: 0,
+    top: 100,
+    marginBottom: 24,
+    left: 70,
+    maxWidth: 420
+  },
+  heroBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16
+  }
 });
+

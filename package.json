@@ -1,5 +1,5 @@
 {
-  "name": "rn-app",
+  "name": "gatherup",
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
@@ -12,6 +12,10 @@
     "expo-image-picker": "~17.0.11",
     "expo-media-library": "~18.2.1",
     "expo-status-bar": "~3.0.9",
+    "expo-splash-screen": "*",
+    "expo-system-ui": "*",
+    "react-native-webrtc": "*",
+    "@config-plugins/react-native-webrtc": "*",
     "expo-video": "~3.0.16",
     "react": "19.1.0",
     "react-native": "0.81.5",

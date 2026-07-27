@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "rn-app",
-    "slug": "rn-app",
+    "name": "Gatherup",
+    "backgroundColor": "#e6e6e6",
+    "slug": "gatherup",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,7 +24,21 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-video"
-    ]
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#e6e6e6"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8e0e65f5-acd4-4f4e-ac65-dc150a396146"
+      }
+    },
+    "owner": "vedantvermajss-team"
   }
 }
