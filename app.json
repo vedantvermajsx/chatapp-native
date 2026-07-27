@@ -24,6 +24,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-video",
+      "./plugins/withAnimatedWebpSupport",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Gatherup needs camera access to make video calls.",
+          "microphonePermission": "Gatherup needs microphone access to make calls."
+        }
+      ],
       [
         "expo-splash-screen",
         {

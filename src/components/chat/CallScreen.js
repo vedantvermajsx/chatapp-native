@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-//import { RTCView } from 'react-native-webrtc';
+import { RTCView } from 'react-native-webrtc';
 import Avatar from '../common/Avatar';
 import { useCall } from '../../contexts/CallContext';
 

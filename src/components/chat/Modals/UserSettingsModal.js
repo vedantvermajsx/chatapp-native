@@ -1,63 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, Alert, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import Avatar from '../../common/Avatar';
 import Spinner from '../../common/Spinner';
 import { useTheme } from '../../../contexts/ThemeContext';
 import userService from '../../../services/user.service';
 import authService from '../../../services/auth.service';
-import messageService from '../../../services/message.service';
 
 export default function UserSettingsModal({ visible, user, onClose, onUpdated }) {
   const { theme } = useTheme();
   const borderColor = theme.isLight ? '#cbd5e0' : '#4a5568';
   const [username, setUsername] = useState(user?.username || '');
-  const [avatar, setAvatar] = useState(user?.avatar || '');
+  const[avatar,setAvatar] = useState(user?.avatar);
   const [bio, setBio] = useState(user?.bio || '');
   const [saving, setSaving] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState(null);
   const requestRef = useRef(0);
 
-  const handleChooseAvatar = async () => {
-    try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Permission needed', 'Please allow photo library access to change your profile picture.');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-      if (result.canceled || !result.assets?.length) return;
-      const asset = result.assets[0];
+  const handleChooseAvatar=()=>{
+ //todo
 
-      setUploadingAvatar(true);
-      const uploaded = await messageService.uploadFile(
-        {
-          uri: asset.uri,
-          mimeType: asset.mimeType || 'image/jpeg',
-          fileName: asset.fileName || 'avatar.jpg',
-          fileSize: asset.fileSize,
-        },
-        'avatars'
-      );
-      setAvatar(uploaded.url);
-    } catch (e) {
-      Alert.alert('Failed', e?.message || 'Could not update profile picture');
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
+  }
 
   useEffect(() => {
     if (!visible) return;
     setUsername(user?.username || '');
-    setAvatar(user?.avatar || '');
     setBio(user?.bio || '');
     setUsernameStatus(null);
   }, [visible, user]);
@@ -90,7 +57,7 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await userService.updateProfile({ username: username.trim(), bio: bio.trim(), avatar });
+      const res = await userService.updateProfile({ username: username.trim(), bio: bio.trim(), avatar: user?.avatar || '' });
       onUpdated?.(res.user);
       onClose();
     } catch (e) {
@@ -123,21 +90,12 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
 
           <View style={styles.body}>
             <View style={{ alignItems: 'center', marginBottom: 18 }}>
-              <View style={{ position: 'relative' }}>
-                <Avatar url={avatar} name={username} size={60} />
-                {uploadingAvatar && (
-                  <View style={styles.avatarUploadingOverlay}>
-                    <Spinner size="small" color="#fff" />
-                  </View>
-                )}
-                <TouchableOpacity
-                  onPress={handleChooseAvatar}
-                  disabled={uploadingAvatar}
-                  style={[styles.cameraBadge, { backgroundColor: theme.myMessageBubble, borderColor: theme.background }]}
-                >
-                  <Ionicons name="camera" size={14} color="#fff" />
-                </TouchableOpacity>
-              </View>
+              <Avatar url={user.avatar} name={username} size={60}>
+                </Avatar>
+              <TouchableOpacity onPress={handleChooseAvatar}>
+                 <Ionicons name="camera" size={20} style={{ position: 'absolute', right: -25,bottom:-10, backgroundColor: 'transparent', borderRadius: 6, padding: 2 }} color={'#fff'}/>
+              </TouchableOpacity>
+           
             </View>
 
             <Text style={[styles.label, { color: theme.otherUsernameColor }]}>Username</Text>
@@ -189,26 +147,4 @@ const styles = StyleSheet.create({
   footer: { padding: 18, borderTopWidth: 1 },
   saveBtn: { paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  cameraBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 26,
-    height: 26,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-  },
-  avatarUploadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 60,
-    height: 60,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

@@ -1,15 +1,19 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
-// import {
-//   RTCPeerConnection,
-//   RTCIceCandidate,
-//   RTCSessionDescription,
-//   mediaDevices,
-// } from 'react-native-webrtc';
+import {
+  RTCPeerConnection,
+  RTCIceCandidate,
+  RTCSessionDescription,
+  mediaDevices,
+} from 'react-native-webrtc';
 import { ensureSocket } from '../events/chatSocketEvents';
 import { useAuth } from './AuthContext';
 
 const CallContext = createContext(null);
 
+// Public STUN only -- works for most networks. For users behind symmetric
+// NATs / restrictive firewalls (mobile carrier NAT, some corporate wifi)
+// this will fail to connect; add a TURN server (e.g. Twilio, coturn) here
+// for production reliability.
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
