@@ -4,7 +4,8 @@ import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
-import { toDisplayUrl, addAttachmentFlag } from '../../../utils/imageUrl';
+import { toDisplayUrl, addAttachmentFlag } from '../../utils/imageUrl';
+import { styles } from './styles';
 
 const QUALITY_OPTIONS = [
   { key: 'low', label: 'Low' },
@@ -54,9 +55,9 @@ export default function ImageZoomModal({ visible, url, media, mediaType = 'image
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View style={styles.zoomBackdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} />
-        <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+        <TouchableOpacity style={styles.zoomCloseBtn} onPress={onClose}>
           <Ionicons name="close" size={26} color="#fff" />
         </TouchableOpacity>
         {isVideo ? (
@@ -96,24 +97,3 @@ export default function ImageZoomModal({ visible, url, media, mediaType = 'image
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' },
-  closeBtn: { position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999 },
-  qualityRow: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 46 : 28,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  qualityBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-  },
-  qualityText: { fontSize: 13, fontWeight: '700', color: '#1f2937' },
-});

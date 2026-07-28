@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
+import { styles } from './styles';
 
 const API_KEY = process.env.EXPO_PUBLIC_KLIPY_API_KEY;
 const STICKER_BASE = `https://api.klipy.com/api/v1/${API_KEY}/stickers`;
@@ -30,8 +31,6 @@ const TABS = [
   { id: 'stickers', label: 'Stickers' },
   { id: 'gifs', label: 'GIFs' },
 ];
-
-
 
 export default function StickerPicker({ onStickerSelect, onClose }) {
   const { theme } = useTheme();
@@ -133,9 +132,9 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
   const accent = theme.myMessageBubble || '#6366f1';
 
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.background, borderColor: border }]}>
-      <View style={[styles.header, { borderBottomColor: border }]}>
-        <Text style={[styles.headerLabel, { color: subText }]}>
+    <View style={[styles.stickerWrap, { backgroundColor: theme.background, borderColor: border }]}>
+      <View style={[styles.stickerHeader, { borderBottomColor: border }]}>
+        <Text style={[styles.stickerHeaderLabel, { color: subText }]}>
           {mode === 'trending' ? 'Trending' : `Results for "${searchQuery}"`}
         </Text>
         <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
@@ -143,13 +142,13 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.grid}>
+      <View style={styles.stickerGrid}>
         {items.length === 0 && loading ? (
-          <View style={styles.centerFill}>
+          <View style={styles.stickerCenterFill}>
             <ActivityIndicator size="small" color={subText} />
           </View>
         ) : items.length === 0 ? (
-          <View style={styles.centerFill}>
+          <View style={styles.stickerCenterFill}>
             <Text style={{ fontSize: 12, color: subText }}>No {activeTab} found</Text>
           </View>
         ) : (
@@ -164,7 +163,7 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
               if (!url) return null;
               return (
                 <TouchableOpacity
-                  style={[styles.cell, { backgroundColor: cardBg }]}
+                  style={[styles.stickerCell, { backgroundColor: cardBg }]}
                   onPress={() => handleSelect(item)}
                 >
                   {item.blur_preview ? (
@@ -174,7 +173,7 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
                       contentFit="cover"
                     />
                   ) : null}
-                  <Image source={{ uri: url }} style={styles.cellImg} contentFit="contain" />
+                  <Image source={{ uri: url }} style={styles.stickerCellImg} contentFit="contain" />
                 </TouchableOpacity>
               );
             }}
@@ -189,12 +188,12 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
         )}
       </View>
 
-      <View style={[styles.tabs, { borderBottomColor: border }]}>
+      <View style={[styles.stickerTabs, { borderBottomColor: border }]}>
         {TABS.map((tab) => (
           <TouchableOpacity
             key={tab.id}
             onPress={() => setActiveTab(tab.id)}
-            style={[styles.tabBtn, activeTab === tab.id && { borderBottomColor: accent, borderBottomWidth: 2 }]}
+            style={[styles.stickerTabBtn, activeTab === tab.id && { borderBottomColor: accent, borderBottomWidth: 2 }]}
           >
             <Text style={{ fontSize: 12, fontWeight: '600', color: activeTab === tab.id ? accent : subText }}>
               {tab.label}
@@ -203,14 +202,14 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
         ))}
       </View>
 
-      <View style={[styles.searchRow, { backgroundColor: inputBg }]}>
+      <View style={[styles.stickerSearchRow, { backgroundColor: inputBg }]}>
         <Ionicons name="search" size={14} color={subText} />
         <TextInput
           placeholder={`Search ${activeTab}...`}
           placeholderTextColor={subText}
           value={searchQuery}
           onChangeText={handleSearch}
-          style={[styles.searchInput, { color: theme.otherMessageText }]}
+          style={[styles.stickerSearchInput, { color: theme.otherMessageText }]}
         />
         {searchQuery ? (
           <TouchableOpacity onPress={handleClearSearch}>
@@ -219,24 +218,9 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
         ) : null}
       </View>
 
-      <View style={styles.footer}>
+      <View style={styles.stickerFooter}>
         <Text style={{ fontSize: 9, fontWeight: '500', color: subText, opacity: 0.6 }}>Powered by KLIPY</Text>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { height: 340, borderWidth: 1, borderRadius: 16, marginBottom: 8, overflow: 'hidden' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1 },
-  headerLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
-  grid: { flex: 1, paddingHorizontal: 6 },
-  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  cell: { flex: 1 / 4, aspectRatio: 1, margin: 3, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  cellImg: { width: '90%', height: '90%' },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1 },
-  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center' },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 10, marginTop: 8, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
-  searchInput: { flex: 1, fontSize: 12, paddingVertical: 2 },
-  footer: { alignItems: 'flex-end', paddingHorizontal: 10, paddingVertical: 5 },
-});

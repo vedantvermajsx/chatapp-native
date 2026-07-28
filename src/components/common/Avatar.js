@@ -1,9 +1,7 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toDisplayUrl } from '../../utils/imageUrl';
-
-
+import { styles } from './styles';
 
 export default function Avatar({ url, name, size = 40, isOnline, style }) {
   const { theme } = useTheme();
@@ -47,7 +45,3 @@ export default function Avatar({ url, name, size = 40, isOnline, style }) {
   );
 }
 
-const styles = StyleSheet.create({
-  circle: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  dot: { position: 'absolute', bottom: -1, right: -1, borderWidth: 2 },
-});

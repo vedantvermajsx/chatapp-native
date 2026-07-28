@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useCall } from '../../../contexts/CallContext';
+import { useCall } from '../../contexts/CallContext';
 import CallControls from './CallControls';
 import CallContent from './CallContent';
 import MinimizedView from './MinimizedView';
+import { styles } from './styles';
 
 export default function ActiveCallScreen() {
   const {
@@ -72,19 +73,3 @@ export default function ActiveCallScreen() {
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#0a0a0f' },
-  minimizeBtn: {
-    position: 'absolute',
-    top: 48,
-    left: 20,
-    zIndex: 30,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-});

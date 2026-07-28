@@ -1,14 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
-import {
-  RTCPeerConnection,
-  RTCIceCandidate,
-  RTCSessionDescription,
-  mediaDevices,
-} from 'react-native-webrtc';
+// import {
+//   RTCPeerConnection,
+//   RTCIceCandidate,
+//   RTCSessionDescription,
+//   mediaDevices,
+// } from 'react-native-webrtc';
 
-// Must match the ICE server config used by the web client (src/hooks/useWebRTC.js)
-// so mobile <-> web calls negotiate the same way, including TURN relay for
-// devices sitting behind carrier-grade / symmetric NAT (mobile networks).
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },

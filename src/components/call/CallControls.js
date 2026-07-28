@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useCall } from '../../../contexts/CallContext';
+import { useCall } from '../../contexts/CallContext';
+import { styles } from './styles';
 
 export default function CallControls({ isVideo }) {
   const { endCall, isMuted, isVideoOff, toggleMute, toggleVideo } = useCall();
@@ -32,33 +32,3 @@ export default function CallControls({ isVideo }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    height: 110,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 26,
-    backgroundColor: 'rgba(10,10,15,0.92)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-  },
-  btn: {
-    width: 50,
-    height: 50,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnActive: { backgroundColor: 'rgba(239,68,68,0.2)' },
-  endBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 999,
-    backgroundColor: '#ef4444',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

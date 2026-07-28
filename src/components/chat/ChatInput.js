@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Avatar from '../common/Avatar';
@@ -8,6 +8,7 @@ import roomService from '../../services/room.service';
 import StickerPicker from './StickerPicker';
 import ChatVoiceRecorder from './ChatVoiceRecorder';
 import ChatMediaPreview from './ChatMediaPreview';
+import { styles } from './styles';
 
 export default function ChatInput({
   user,
@@ -117,7 +118,7 @@ export default function ChatInput({
   };
 
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.background, borderTopColor: theme.isLight ? '#cbd5e0' : '#4a5568' }]}>
+    <View style={[styles.inputWrap, { backgroundColor: theme.background, borderTopColor: theme.isLight ? '#cbd5e0' : '#4a5568' }]}>
       {disabled && <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background, opacity: 0.6, zIndex: 5 }]} />}
 
       <ChatMediaPreview media={pendingMedia} onRemove={onRemoveMedia} theme={theme} />
@@ -137,7 +138,7 @@ export default function ChatInput({
         </View>
       )}
 
-      <View style={styles.row}>
+      <View style={styles.inputRow}>
          <View style={[styles.inputPill, { backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937' }]}>
           <TouchableOpacity style={styles.pillIconBtn} onPress={handleAttach} disabled={disabled || !!pendingMedia || isRecording}>
             <Ionicons name="attach-outline" size={22} color={theme.otherUsernameColor} />
@@ -197,17 +198,3 @@ export default function ChatInput({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { borderTopWidth: 0, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 8, position: 'relative' },
-  row: { flexDirection: 'row', alignItems: 'flex-end' },
-  inputPill: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', borderRadius: 22, paddingHorizontal: 6, paddingVertical: 4 },
-  pillIconBtn: { paddingHorizontal: 6,paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
-  textInput: { flex: 1, paddingHorizontal: 4, paddingVertical: 6, fontSize: 15, maxHeight: 110, minHeight: 30, textAlignVertical: 'center' },
-  recordingRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4 },
-  recordDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#ef4444' },
-  sendBtn: { width: 42, height: 42, borderRadius: 999, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  mentionList: { position: 'absolute', left: 10, right: 10, bottom: '100%', marginBottom: 4, borderRadius: 12, borderWidth: 1, maxHeight: 180, overflow: 'hidden' },
-  mentionItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  mentionText: { fontSize: 13.5, fontWeight: '600', marginLeft: 10 },
-});

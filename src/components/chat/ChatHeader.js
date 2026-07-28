@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatLastSeen } from '../../utils/dateUtils';
+import { styles } from './styles';
 
 export default function ChatHeader({
   user,
@@ -89,19 +90,3 @@ export default function ChatHeader({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', marginRight: 2 },
-  titleWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 },
-  name: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
-  sub: { fontSize: 12.5, marginTop: 1, opacity: 0.8 },
-  actions: { flexDirection: 'row', alignItems: 'center' },
-  iconBtn: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-});

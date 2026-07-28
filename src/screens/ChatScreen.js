@@ -21,11 +21,12 @@ import {
 } from '../utils/chatHelpers';
 
 import ChatHeader from '../components/chat/ChatHeader';
-import MessageBubble, { SystemMessage, TypingIndicator } from '../components/chat/Message';
+import MessageBubble, { SystemMessage, TypingIndicator } from '../components/message';
 import ChatInput from '../components/chat/ChatInput';
 import MembersPanel from '../components/chat/MembersPanel';
-import GroupSettingsModal from '../components/chat/Modals/GroupSettingsModal';
-import ImageZoomModal from '../components/chat/Modals/ImageZoomModal';
+import GroupSettingsModal from '../components/modals/GroupSettingsModal';
+import ImageZoomModal from '../components/modals/ImageZoomModal';
+import Spinner from '../components/common/Spinner';
 
 export default function ChatScreen({ route, navigation }) {
   const { room: initialRoom, privateChat: initialPrivateChat } = route.params || {};
@@ -38,6 +39,7 @@ export default function ChatScreen({ route, navigation }) {
   const [inputMessage, setInputMessage] = useState('');
   const [loadingMessages, setLoadingMessages] = useState(!!(initialRoom || initialPrivateChat));
   const [pendingMedia, setPendingMedia] = useState(null);
+  const [uploadProgresses, setUploadProgresses] = useState({});
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
@@ -319,12 +321,18 @@ export default function ChatScreen({ route, navigation }) {
       isPending: true,
       timestamp: new Date().toISOString(),
     };
+    
+    const cacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
+    if (cacheKey) {
+      dbService.addMessage(cacheKey, optimistic).catch(() => {});
+    }
+
     setMessages((prev) => [...prev, optimistic]);
     scrollToEnd();
     return { uuid, optimistic };
   };
 
-  const resolveOptimistic = useCallback((uuid, response, media) => {
+  const resolveOptimistic = useCallback((uuid, response, media, originalCacheKey) => {
     setMessages((prev) => {
       const idx = prev.findIndex((m) => m.uuid === uuid || m.id === uuid);
       if (idx === -1) return prev;
@@ -336,11 +344,31 @@ export default function ChatScreen({ route, navigation }) {
         timestamp: response?.timestamp || next[idx].timestamp,
         isPending: false,
       };
-      const cacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
-      if (cacheKey) dbService.addMessage(cacheKey, next[idx]);
       return next;
     });
-  }, [roomId, otherUserId]);
+
+    if (originalCacheKey) {
+      (async () => {
+        try {
+          const resolvedMessage = {
+            id: response?._id || response?.id || uuid,
+            uuid,
+            username: user.username,
+            avatar: user.avatar,
+            text: response?.message || response?.content || '',
+            media: media || null,
+            isOwn: true,
+            isPending: false,
+            timestamp: response?.timestamp || new Date().toISOString(),
+          };
+          await dbService.removeMessage(originalCacheKey, uuid);
+          await dbService.addMessage(originalCacheKey, resolvedMessage);
+        } catch (e) {
+          console.error('Error resolving optimistic message in database:', e);
+        }
+      })();
+    }
+  }, [user]);
 
   const handleSend = async () => {
     const text = inputMessage.trim();
@@ -351,11 +379,15 @@ export default function ChatScreen({ route, navigation }) {
 
     const localPreview = localMedia ? { type: localMedia.type, url: localMedia.uri, isPending: true } : null;
     const { uuid } = sendOptimistic(text, localPreview);
+    const originalCacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
 
     try {
       let finalMedia = null;
       if (localMedia) {
-        finalMedia = await messageService.uploadFile(localMedia, 'data');
+        setUploadProgresses((prev) => ({ ...prev, [uuid]: 0 }));
+        finalMedia = await messageService.uploadFile(localMedia, 'data', (progress) => {
+          setUploadProgresses((prev) => ({ ...prev, [uuid]: progress }));
+        });
       }
 
       let response;
@@ -370,16 +402,21 @@ export default function ChatScreen({ route, navigation }) {
           receiverModel: currentPrivateChat?.role === 'guest' ? 'Guest' : 'User',
         });
       }
-      resolveOptimistic(uuid, response, finalMedia);
+      resolveOptimistic(uuid, response, finalMedia, originalCacheKey);
     } catch (e) {
       Alert.alert('Failed to send', e?.response?.data?.message || 'Message could not be delivered. It will stay marked as pending.');
+    } finally {
+      setUploadProgresses((prev) => {
+        const next = { ...prev };
+        delete next[uuid];
+        return next;
+      });
     }
   };
 
   const handleStickerSend = async (sticker) => {
-    
-    
     const { uuid } = sendOptimistic('', sticker);
+    const originalCacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
     try {
       let response;
       if (roomId) response = await messageService.sendRoomMessage({ roomId, text: '', media: sticker, uuid });
@@ -392,7 +429,7 @@ export default function ChatScreen({ route, navigation }) {
           receiverModel: currentPrivateChat?.role === 'guest' ? 'Guest' : 'User',
         });
       }
-      resolveOptimistic(uuid, response, sticker);
+      resolveOptimistic(uuid, response, sticker, originalCacheKey);
     } catch (e) {}
   };
 
@@ -454,6 +491,7 @@ export default function ChatScreen({ route, navigation }) {
         topRadius={{ tl: 18, tr: 18 }}
         bottomRadius={{ bl: item.isOwn ? 18 : 4, br: item.isOwn ? 4 : 18 }}
         onImagePress={setZoomMedia}
+        uploadProgress={uploadProgresses[item.uuid] ?? uploadProgresses[item.id]}
       />
     );
   };
@@ -485,23 +523,29 @@ export default function ChatScreen({ route, navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? topInset + headerHeight : 0}
       >
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(item, i) => String(item.id || item.uuid || i)}
-          renderItem={renderItem}
-          onContentSizeChange={scrollToEnd}
-          contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
-          ListFooterComponent={typingIndicator ? <TypingIndicator avatar={typingIndicator.avatar} name={typingIndicator.name} charCount={typingIndicator.charCount} /> : null}
-          ListEmptyComponent={
-            !loadingMessages ? (
-              <View style={styles.emptyWrap}>
-                <Text style={[styles.emptyText, { color: theme.otherMessageText }]}>No messages yet</Text>
-                <Text style={styles.emptySub}>Be the first to say hi 👋</Text>
-              </View>
-            ) : null
-          }
-        />
+        {loadingMessages && messages.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Spinner size="large" color={theme.primary || theme.myMessageBubble || '#008080'} />
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(item, i) => String(item.id || item.uuid || i)}
+            renderItem={renderItem}
+            onContentSizeChange={scrollToEnd}
+            contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
+            ListFooterComponent={typingIndicator ? <TypingIndicator avatar={typingIndicator.avatar} name={typingIndicator.name} charCount={typingIndicator.charCount} /> : null}
+            ListEmptyComponent={
+              !loadingMessages ? (
+                <View style={styles.emptyWrap}>
+                  <Text style={[styles.emptyText, { color: theme.otherMessageText }]}>No messages yet</Text>
+                  <Text style={styles.emptySub}>Be the first to say hi 👋</Text>
+                </View>
+              ) : null
+            }
+          />
+        )}
 
         <ChatInput
           user={user}

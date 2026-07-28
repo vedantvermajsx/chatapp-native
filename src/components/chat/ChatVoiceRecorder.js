@@ -2,8 +2,7 @@ import React, { useRef } from 'react';
 import { TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-
-
+import { styles } from './styles';
 
 export default function ChatVoiceRecorder({ onAudioReady, theme, isRecording, setIsRecording }) {
   const recordingRef = useRef(null);
@@ -46,7 +45,7 @@ export default function ChatVoiceRecorder({ onAudioReady, theme, isRecording, se
   };
 
   return (
-    <TouchableOpacity onPress={toggleRecording} style={{ paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' }}>
+    <TouchableOpacity onPress={toggleRecording} style={styles.pillIconBtn}>
       {isRecording ? (
         <Ionicons name="square" size={20} color="#ef4444" />
       ) : (

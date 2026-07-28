@@ -1,7 +1,7 @@
 import { View, Text } from 'react-native';
-import Avatar from '../../common/Avatar';
-import { useTheme } from '../../../contexts/ThemeContext';
-import { styles } from './MessageStyles';
+import Avatar from '../common/Avatar';
+import { useTheme } from '../../contexts/ThemeContext';
+import { styles } from './styles';
 
 export function TypingIndicator({ avatar, name, charCount }) {
   const { theme } = useTheme();

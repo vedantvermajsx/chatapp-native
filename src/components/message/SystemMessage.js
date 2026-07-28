@@ -1,9 +1,9 @@
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../../contexts/ThemeContext';
-import { formatSeenAt } from '../../../utils/dateUtils';
-import { SYSTEM_ICONS } from '../../common/SystemIcons';
-import { styles } from './MessageStyles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { formatSeenAt } from '../../utils/dateUtils';
+import { SYSTEM_ICONS } from '../common/SystemIcons';
+import { styles } from './styles';
 
 export function SystemMessage({ msg, isPrivateChat }) {
   const { theme } = useTheme();

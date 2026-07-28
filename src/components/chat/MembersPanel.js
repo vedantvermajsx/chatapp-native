@@ -1,10 +1,11 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, FlatList, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, FlatList, Animated, Dimensions, Easing, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
 import Spinner from '../common/Spinner';
 import { useTheme } from '../../contexts/ThemeContext';
+import { styles } from './styles';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PANEL_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 340);
@@ -32,7 +33,7 @@ function MemberRow({ member, isAdmin, isOnline, isMe, onStartPrivateChat, theme 
         </Text>
       </View>
       {!isMe && (
-        <TouchableOpacity style={styles.msgBtn} onPress={() => onStartPrivateChat({ ...member, id: member.id || member._id })}>
+        <TouchableOpacity style={styles.memberMsgBtn} onPress={() => onStartPrivateChat({ ...member, id: member.id || member._id })}>
           <Ionicons name="chatbubble-outline" size={17} color={theme.otherUsernameColor} />
         </TouchableOpacity>
       )}
@@ -45,8 +46,6 @@ export default function MembersPanel({ visible, onClose, members, admin, current
   const [search, setSearch] = useState('');
   const borderColor = theme.isLight ? '#cbd5e0' : '#4a5568';
 
-  
-  
   const [rendered, setRendered] = useState(visible);
   const translateX = useRef(new Animated.Value(PANEL_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -86,7 +85,6 @@ export default function MembersPanel({ visible, onClose, members, admin, current
         if (finished) setRendered(false);
       });
     }
-    
   }, [visible]);
 
   const filtered = useMemo(() => {
@@ -106,30 +104,30 @@ export default function MembersPanel({ visible, onClose, members, admin, current
 
   return (
     <Modal visible={rendered} animationType="none" transparent onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View style={styles.panelBackdrop}>
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.0)', opacity: backdropOpacity }]}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         </Animated.View>
         <Animated.View style={[styles.panel, { backgroundColor: theme.background, borderColor, transform: [{ translateX }] }]}>
           <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-          <View style={[styles.header, { borderColor }]}>
+          <View style={[styles.panelHeader, { borderColor }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="people" size={20} color={theme.otherUsernameColor} />
-              <Text style={[styles.title, { color: theme.otherMessageText }]}>Room Members</Text>
+              <Text style={[styles.panelTitle, { color: theme.otherMessageText }]}>Room Members</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={22} color={theme.otherUsernameColor} />
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.searchRow, { backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937' }]}>
+          <View style={[styles.panelSearchRow, { backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937' }]}>
             <Ionicons name="search" size={16} color={theme.otherUsernameColor} />
             <TextInput
               placeholder="Search members..."
               placeholderTextColor={theme.otherUsernameColor}
               value={search}
               onChangeText={setSearch}
-              style={[styles.searchInput, { color: theme.otherMessageText }]}
+              style={[styles.panelSearchInput, { color: theme.otherMessageText }]}
             />
           </View>
 
@@ -143,7 +141,7 @@ export default function MembersPanel({ visible, onClose, members, admin, current
               keyExtractor={(s) => s.title}
               renderItem={({ item: section }) => (
                 <View style={{ marginBottom: 10 }}>
-                  <Text style={[styles.sectionTitle, { color: theme.otherUsernameColor }]}>{section.title}</Text>
+                  <Text style={[styles.panelSectionTitle, { color: theme.otherUsernameColor }]}>{section.title}</Text>
                   {section.data.map((m) => (
                     <MemberRow
                       key={m._id || m.id}
@@ -172,17 +170,3 @@ export default function MembersPanel({ visible, onClose, members, admin, current
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
-  panel: { width: '90%', maxWidth: 440, height: '100%', maxHeight: 1500, borderRadius:10, borderLeftWidth: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1 },
-  title: { fontSize: 17, fontWeight: '700' },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 8, marginTop: 8, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4 },
-  searchInput: { flex: 1, fontSize: 12.5 },
-  sectionTitle: { fontSize: 12.5, fontWeight: '700', marginBottom: 8, marginLeft: 4 },
-  memberRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 14, borderWidth: 1, marginBottom: 8 },
-  memberName: { fontSize: 14, fontWeight: '600' },
-  memberSub: { fontSize: 11.5, color: '#9ca3af', marginTop: 2 },
-  msgBtn: { width: 34, height: 34, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-});

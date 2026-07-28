@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
+import { styles } from './styles';
 
 const BAR_COUNT = 28;
 
@@ -30,7 +31,7 @@ function resampleWaveform(waveform, count) {
 
 export function AudioContent({ msg, isOwn, textColor }) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0); // 0..1
+  const [progress, setProgress] = useState(0);
   const [durationSec, setDurationSec] = useState(msg.media.duration || 0);
   const soundRef = useRef(null);
 
@@ -92,17 +93,17 @@ export function AudioContent({ msg, isOwn, textColor }) {
   };
 
   return (
-    <View style={styles.wrap}>
-      <TouchableOpacity onPress={togglePlay} style={[styles.playBtn, { backgroundColor: isOwn ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.08)' }]}>
+    <View style={styles.audioWrap}>
+      <TouchableOpacity onPress={togglePlay} style={[styles.audioPlayBtn, { backgroundColor: isOwn ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.08)' }]}>
         <Ionicons name={isPlaying ? 'pause' : 'play'} size={16} color={iconColor} style={!isPlaying ? { marginLeft: 2 } : null} />
       </TouchableOpacity>
 
-      <View style={styles.barsRow}>
+      <View style={styles.audioBarsRow}>
         {bars.map((h, i) => (
           <View
             key={i}
             style={[
-              styles.bar,
+              styles.audioBar,
               {
                 height: 4 + h * 20,
                 backgroundColor: iconColor,
@@ -113,15 +114,7 @@ export function AudioContent({ msg, isOwn, textColor }) {
         ))}
       </View>
 
-      <Text style={[styles.duration, { color: iconColor }]}>{durationLabel()}</Text>
+      <Text style={[styles.audioDuration, { color: iconColor }]}>{durationLabel()}</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', width: 190, paddingVertical: 2 },
-  playBtn: { width: 30, height: 30, borderRadius: 999, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  barsRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2, height: 24 },
-  bar: { width: 2.5, borderRadius: 2 },
-  duration: { fontSize: 10, marginLeft: 6, opacity: 0.85, fontVariant: ['tabular-nums'] },
-});

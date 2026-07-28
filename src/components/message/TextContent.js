@@ -1,5 +1,5 @@
 import { Text } from 'react-native';
-import { styles } from './MessageStyles';
+import { styles } from './styles';
 
 export function TextContent({ text, textColor, bubbleBg }) {
   if (!text) return null;
