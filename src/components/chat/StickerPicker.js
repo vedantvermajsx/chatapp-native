@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, FlatList, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -170,10 +171,10 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
                     <Image
                       source={{ uri: item.blur_preview }}
                       style={StyleSheet.absoluteFill}
-                      resizeMode="cover"
+                      contentFit="cover"
                     />
                   ) : null}
-                  <Image source={{ uri: url }} style={styles.cellImg} resizeMode="contain" />
+                  <Image source={{ uri: url }} style={styles.cellImg} contentFit="contain" />
                 </TouchableOpacity>
               );
             }}

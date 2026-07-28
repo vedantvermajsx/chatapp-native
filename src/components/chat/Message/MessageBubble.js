@@ -1,4 +1,5 @@
-import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../../common/Avatar';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -26,7 +27,7 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
       <View style={{ maxWidth: '78%', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
         {isSticker ? (
           <View style={{ position: 'relative' }}>
-            <Image source={{ uri: toDisplayUrl(msg.media.url) }} style={styles.sticker} resizeMode="contain" />
+            <Image source={{ uri: toDisplayUrl(msg.media.url) }} style={styles.sticker} contentFit="contain" />
             {msg.isPending && (
               <Ionicons name="reload-outline" size={14} color="#9ca3af" style={{ position: 'absolute', bottom: 4, right: 4 }} />
             )}
@@ -56,7 +57,7 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
                 <Image
                   source={{ uri: toDisplayUrl(msg.media.thumbnail || msg.media.low || msg.media.url) }}
                   style={styles.mediaImage}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               </TouchableOpacity>
             )}
