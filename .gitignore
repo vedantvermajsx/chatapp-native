@@ -39,3 +39,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+.env
+.gitignore
+.env.production
+AGENTS.md
+eas.json
+CLAUDE.md
+.vscode
