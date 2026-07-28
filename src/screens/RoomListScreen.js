@@ -338,8 +338,7 @@ export default function RoomListScreen({ navigation }) {
     [unreadCounts]
   );
 
-  // ---- Sub-renders -------------------------------------------------
-
+  // ---- Sub-renders ------------
   const renderSidebarHeader = () => (
     <View style={[styles.sidebarHeader, { borderBottomColor: borderColor }]}>
       <View style={styles.sidebarHeaderInner}>

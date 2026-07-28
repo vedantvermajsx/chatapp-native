@@ -6,9 +6,7 @@ class MessageService {
   basePath = '/messages';
 
   async sendRoomMessage({ roomId, text, media, uuid }) {
-    const strippedMedia = media
-      ? { url: media.url, type: media.type, duration: media.duration, waveform: media.waveform }
-      : null;
+    const strippedMedia = media ? { url: media.url, type: media.type } : null;
     const res = await api.post(`${this.basePath}/send`, {
       roomId,
       message: text,
@@ -19,9 +17,7 @@ class MessageService {
   }
 
   async sendPrivateMessage({ receiverId, content, receiverModel = 'User', media, uuid, isSystemMessage, systemType }) {
-    const strippedMedia = media
-      ? { url: media.url, type: media.type, duration: media.duration, waveform: media.waveform }
-      : null;
+    const strippedMedia = media ? { url: media.url, type: media.type } : null;
     const res = await api.post(`${this.basePath}/private/send`, {
       receiverId,
       content,

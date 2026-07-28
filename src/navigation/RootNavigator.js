@@ -16,9 +16,6 @@ export default function RootNavigator() {
   const { user, loading } = useAuth();
   const { theme } = useTheme();
 
-  // The white flash on back-navigation is the native root view's default
-  // background showing through for a frame before the JS screen paints.
-  // Keep it in sync with the current theme so any flash is invisible.
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(theme.background);
   }, [theme.background]);

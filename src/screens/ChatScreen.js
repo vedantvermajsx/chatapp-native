@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useCall } from '../contexts/CallContext';
 import { useChatSocket, setActiveChatKey } from '../hooks/useChatSocket';
 import messageService from '../services/message.service';
 import roomService from '../services/room.service';
@@ -25,12 +26,12 @@ import ChatInput from '../components/chat/ChatInput';
 import MembersPanel from '../components/chat/MembersPanel';
 import GroupSettingsModal from '../components/chat/Modals/GroupSettingsModal';
 import ImageZoomModal from '../components/chat/Modals/ImageZoomModal';
-import { useCall } from '../contexts/CallContext';
 
 export default function ChatScreen({ route, navigation }) {
   const { room: initialRoom, privateChat: initialPrivateChat } = route.params || {};
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { startCall } = useCall();
   const [currentRoom, setCurrentRoom] = useState(initialRoom || null);
   const [currentPrivateChat, setCurrentPrivateChat] = useState(initialPrivateChat || null);
   const [messages, setMessages] = useState([]);
@@ -43,7 +44,6 @@ export default function ChatScreen({ route, navigation }) {
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [zoomMedia, setZoomMedia] = useState(null);
   const [leaving, setLeaving] = useState(false);
-  const { startCall } = useCall();
   const [topInset, setTopInset] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
   const unreadCountRef = useRef(route.params?.unreadCount || 0);
@@ -349,34 +349,13 @@ export default function ChatScreen({ route, navigation }) {
     setInputMessage('');
     setPendingMedia(null);
 
-    const localPreview = localMedia
-      ? {
-          type: localMedia.type,
-          url: localMedia.uri,
-          isPending: true,
-          uploadProgress: 0,
-          duration: localMedia.duration,
-          waveform: localMedia.waveform,
-        }
-      : null;
+    const localPreview = localMedia ? { type: localMedia.type, url: localMedia.uri, isPending: true } : null;
     const { uuid } = sendOptimistic(text, localPreview);
 
     try {
       let finalMedia = null;
       if (localMedia) {
-        const uploaded = await messageService.uploadFile(localMedia, 'data', (pct) => {
-          setMessages((prev) => {
-            const idx = prev.findIndex((m) => m.uuid === uuid);
-            if (idx === -1) return prev;
-            const next = [...prev];
-            next[idx] = { ...next[idx], media: { ...next[idx].media, uploadProgress: pct } };
-            return next;
-          });
-        });
-        // uploadFile only returns {url, type(+qualities)} -- carry over the
-        // real duration/waveform we captured at record time so the sent
-        // message keeps its actual voice pattern, not a placeholder.
-        finalMedia = { ...uploaded, duration: localMedia.duration, waveform: localMedia.waveform };
+        finalMedia = await messageService.uploadFile(localMedia, 'data');
       }
 
       let response;
@@ -496,7 +475,7 @@ export default function ChatScreen({ route, navigation }) {
           }}
           onOpenGroupSettings={() => setShowGroupSettings(true)}
           onLeaveOrDelete={handleLeaveOrDelete}
-          onStartCall={(isVideo) => startCall(currentPrivateChat, isVideo)}
+          onStartCall={(isVideo) => otherUserId && startCall(otherUserId, isVideo, currentPrivateChat)}
           leaving={leaving}
         />
       </View>

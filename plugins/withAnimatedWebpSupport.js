@@ -1,8 +1,3 @@
-// Expo's Android template only compiles in animated-gif / animated-webp
-// support when these gradle.properties flags are set. They're needed for
-// klipy stickers/gifs to actually render on Android; without
-// expo.webp.animated=true, static webp shows fine but animated webp
-// silently fails to decode (blank space, size still reserved).
 const { createRunOncePlugin, withGradleProperties } = require('@expo/config-plugins');
 
 const FLAGS = {

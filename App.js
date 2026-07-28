@@ -5,11 +5,23 @@ import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { CallProvider } from './src/contexts/CallContext';
+import { useChatSocket } from './src/hooks/useChatSocket';
+import CallOverlay from './src/components/chat/Call/CallOverlay';
 import RootNavigator from './src/navigation/RootNavigator';
-import CallScreen from './src/components/chat/CallScreen';
-import IncomingCallModal from './src/components/chat/IncomingCallModal';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+function CallGate({ children }) {
+  const { user } = useAuth();
+  const { socket } = useChatSocket(user);
+
+  return (
+    <CallProvider socket={socket}>
+      <CallOverlay />
+      {children}
+    </CallProvider>
+  );
+}
 
 function SplashGate() {
   const { loading } = useAuth();
@@ -21,11 +33,9 @@ function SplashGate() {
   }, [loading]);
 
   return (
-    <>
+    <CallGate>
       <RootNavigator />
-      <IncomingCallModal />
-      <CallScreen />
-    </>
+    </CallGate>
   );
 }
 
@@ -33,11 +43,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <CallProvider>
-          <NavigationContainer>
-            <SplashGate />
-          </NavigationContainer>
-        </CallProvider>
+        <NavigationContainer>
+          <SplashGate />
+        </NavigationContainer>
       </ThemeProvider>
     </AuthProvider>
   );

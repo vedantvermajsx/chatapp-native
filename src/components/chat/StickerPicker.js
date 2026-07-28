@@ -7,18 +7,17 @@ const API_KEY = process.env.EXPO_PUBLIC_KLIPY_API_KEY;
 const STICKER_BASE = `https://api.klipy.com/api/v1/${API_KEY}/stickers`;
 const GIF_BASE = `https://api.klipy.com/api/v1/${API_KEY}/gifs`;
 
-// Prefer webp everywhere (best quality/size, and natively supported on
-// iOS/Android and all modern desktop/mobile browsers). If a particular
-// rendition's webp genuinely fails to paint (rare, some older WebViews with
-// animated webp), the cell below falls back to gif automatically on error
-// -- no need to guess by platform up front.
-const FORMAT_ORDER = ['webp', 'gif', 'png'];
+const FORMAT_ORDER = {
+  web: ['gif', 'webp', 'png'],
+  native: ['webp', 'gif', 'png'],
+};
 
 const getMediaUrl = (file, size = 'xs') => {
   if (!file) return null;
+  const order = Platform.OS === 'web' ? FORMAT_ORDER.web : FORMAT_ORDER.native;
   const sizesToTry = [size, 'sm', 'md', 'xs', 'hd'].filter((s, i, a) => a.indexOf(s) === i);
   for (const s of sizesToTry) {
-    for (const fmt of FORMAT_ORDER) {
+    for (const fmt of order) {
       const url = file?.[s]?.[fmt]?.url;
       if (url) return url;
     }
@@ -26,34 +25,10 @@ const getMediaUrl = (file, size = 'xs') => {
   return null;
 };
 
-const getFallbackUrl = (file, size = 'xs') => {
-  if (!file) return null;
-  return file?.[size]?.gif?.url || file?.sm?.gif?.url || null;
-};
-
 const TABS = [
   { id: 'stickers', label: 'Stickers' },
   { id: 'gifs', label: 'GIFs' },
 ];
-
-function StickerCell({ item, url, cardBg, onPress }) {
-  const [failedOnce, setFailedOnce] = useState(false);
-  const src = failedOnce ? getFallbackUrl(item.file, 'xs') || url : url;
-
-  return (
-    <TouchableOpacity style={[styles.cell, { backgroundColor: cardBg }]} onPress={onPress}>
-      {item.blur_preview ? (
-        <Image source={{ uri: item.blur_preview }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-      ) : null}
-      <Image
-        source={{ uri: src }}
-        style={styles.cellImg}
-        resizeMode="contain"
-        onError={() => setFailedOnce(true)}
-      />
-    </TouchableOpacity>
-  );
-}
 
 
 
@@ -187,12 +162,19 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
               const url = getMediaUrl(item.file, 'xs');
               if (!url) return null;
               return (
-                <StickerCell
-                  item={item}
-                  url={url}
-                  cardBg={cardBg}
+                <TouchableOpacity
+                  style={[styles.cell, { backgroundColor: cardBg }]}
                   onPress={() => handleSelect(item)}
-                />
+                >
+                  {item.blur_preview ? (
+                    <Image
+                      source={{ uri: item.blur_preview }}
+                      style={StyleSheet.absoluteFill}
+                      resizeMode="cover"
+                    />
+                  ) : null}
+                  <Image source={{ uri: url }} style={styles.cellImg} resizeMode="contain" />
+                </TouchableOpacity>
               );
             }}
             ListFooterComponent={

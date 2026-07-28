@@ -6,8 +6,6 @@ import { formatMessageTime, formatSeenAt } from '../../../utils/dateUtils';
 import { toDisplayUrl } from '../../../utils/imageUrl';
 import { TextContent } from './TextContent';
 import { VideoContent } from './VideoContent';
-import { AudioContent } from './AudioContent';
-import { UploadOverlay } from './UploadOverlay';
 import { styles } from './MessageStyles';
 
 export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagged, topRadius, bottomRadius, onImagePress }) {
@@ -20,7 +18,6 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
   const isSticker = msg?.media?.type === 'sticker' || msg?.media?.type === 'gif';
   const isImageMedia = msg?.media?.type === 'image';
   const isVideoMedia = msg?.media?.type === 'video';
-  const isAudioMedia = msg?.media?.type === 'audio';
 
   return (
     <View style={[styles.row, { justifyContent: isOwn ? 'flex-end' : 'flex-start' }]}>
@@ -56,28 +53,14 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
             )}
             {isImageMedia && (
               <TouchableOpacity activeOpacity={0.85} onPress={() => onImagePress?.({ url: msg.media.hd || msg.media.mid || msg.media.url, media: msg.media, mediaType: 'image' })}>
-                <View style={{ position: 'relative' }}>
-                  <Image
-                    source={{ uri: toDisplayUrl(msg.media.thumbnail || msg.media.low || msg.media.url) }}
-                    style={styles.mediaImage}
-                    resizeMode="cover"
-                  />
-                  {msg.isPending && <UploadOverlay progress={msg.media.uploadProgress} />}
-                </View>
+                <Image
+                  source={{ uri: toDisplayUrl(msg.media.thumbnail || msg.media.low || msg.media.url) }}
+                  style={styles.mediaImage}
+                  resizeMode="cover"
+                />
               </TouchableOpacity>
             )}
-            {isVideoMedia && (
-              <View style={{ position: 'relative' }}>
-                <VideoContent msg={msg} onImagePress={onImagePress} />
-                {msg.isPending && <UploadOverlay progress={msg.media.uploadProgress} />}
-              </View>
-            )}
-            {isAudioMedia && (
-              <View style={{ position: 'relative' }}>
-                <AudioContent msg={msg} isOwn={isOwn} textColor={textColor} />
-                {msg.isPending && <UploadOverlay progress={msg.media.uploadProgress} />}
-              </View>
-            )}
+            {isVideoMedia && <VideoContent msg={msg} onImagePress={onImagePress} />}
             <TextContent text={msg.text} textColor={textColor} bubbleBg={bubbleBg} />
           </View>
         )}

@@ -5,10 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 const BAR_COUNT = 28;
 
-// Older messages (or ones where the backend didn't persist the `waveform`
-// field) won't have real amplitude data. Rather than a flat pill, generate a
-// stable, message-specific pattern so it still reads as a waveform -- same
-// input always produces the same bars, it just isn't derived from real audio.
 function seededWaveform(seedStr, count) {
   let seed = 0;
   for (let i = 0; i < seedStr.length; i++) seed = (seed * 31 + seedStr.charCodeAt(i)) >>> 0;

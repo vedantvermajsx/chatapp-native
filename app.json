@@ -9,10 +9,18 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rnapp.app"
+      "bundleIdentifier": "com.rnapp.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Gatherup to access your camera for video calls.",
+        "NSMicrophoneUsageDescription": "Allow Gatherup to access your microphone for calls."
+      }
     },
     "android": {
       "package": "com.rnapp.app",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -25,14 +33,6 @@
     },
     "plugins": [
       "expo-video",
-      "./plugins/withAnimatedWebpSupport",
-      [
-        "@config-plugins/react-native-webrtc",
-        {
-          "cameraPermission": "Gatherup needs camera access to make video calls.",
-          "microphonePermission": "Gatherup needs microphone access to make calls."
-        }
-      ],
       [
         "expo-splash-screen",
         {
@@ -40,6 +40,15 @@
           "imageWidth": 180,
           "resizeMode": "contain",
           "backgroundColor": "#e6e6e6"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
         }
       ]
     ],
