@@ -1,25 +1,26 @@
 {
   "expo": {
     "name": "Gatherup",
-    "backgroundColor": "#e6e6e6",
     "slug": "gatherup",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "backgroundColor": "#e6e6e6",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rnapp.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Allow Gatherup to access your camera for video calls.",
-        "NSMicrophoneUsageDescription": "Allow Gatherup to access your microphone for calls."
+        "NSCameraUsageDescription": "Gatherup uses your camera for video calls and capturing media.",
+        "NSMicrophoneUsageDescription": "Gatherup uses your microphone for voice messages and video calls."
       }
     },
     "android": {
       "package": "com.rnapp.app",
       "permissions": [
         "CAMERA",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -34,6 +35,12 @@
     "plugins": [
       "expo-video",
       [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Gatherup to access your microphone for voice messages and calls."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
@@ -47,14 +54,9 @@
         {
           "android": {
             "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-dontwarn expo.modules.kotlin.**\n-keep class expo.modules.kotlin.** { *; }"
           }
-        }
-      ],
-      [
-        "expo-audio",
-        {
-          "microphonePermission": "Allow Gatherup to access your microphone for voice messages."
         }
       ]
     ],
