@@ -17,6 +17,12 @@ class UserService {
     const res = await api.get(`${this.basePath}/activity-status`, { params: { userId } });
     return res.data.data;
   }
+
+  async searchUsers(query, limit = 5) {
+    const res = await api.get(`${this.basePath}/search`, { params: { q: query, limit } });
+    const data = res.data;
+    return Array.isArray(data) ? data : (data?.users || data?.data || []);
+  }
 }
 
 export default new UserService();

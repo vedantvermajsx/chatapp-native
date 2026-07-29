@@ -11,6 +11,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import userService from '../../services/user.service';
 import authService from '../../services/auth.service';
 import messageService from '../../services/message.service';
+import { sanitizeUsernameInput } from '../../utils/validation';
 import { styles } from './styles';
 
 export default function UserSettingsModal({ visible, user, onClose, onUpdated }) {
@@ -23,9 +24,9 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
   const [saving, setSaving] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState(null);
 
-  const [avatarUri, setAvatarUri] = useState(null);   // local preview URI
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || ''); // uploaded URL
-  const [uploadProgress, setUploadProgress] = useState(null); // 0-100 or null
+  const [avatarUri, setAvatarUri] = useState(null);  
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || ''); 
+  const [uploadProgress, setUploadProgress] = useState(null); 
 
   const requestRef = useRef(0);
 
@@ -176,7 +177,7 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
             <Text style={[styles.label, { color: theme.otherUsernameColor }]}>Username</Text>
             <TextInput
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(t) => setUsername(sanitizeUsernameInput(t))}
               autoCapitalize="none"
               style={[styles.input, { backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937', color: theme.otherMessageText }]}
             />

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from './styles';
 
 const BAR_COUNT = 28;
+const POLL_MS = 100; 
 
 function seededWaveform(seedStr, count) {
   let seed = 0;
@@ -29,73 +30,71 @@ function resampleWaveform(waveform, count) {
   return out;
 }
 
+function formatDuration(totalSeconds) {
+  const s = Math.floor(Math.max(0, totalSeconds || 0));
+  const m = Math.floor(s / 60);
+  const sec = String(s % 60).padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
 export function AudioContent({ msg, isOwn, textColor }) {
+  const url = msg.media.url;
+  const player = useAudioPlayer(url || '');
+
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(msg.media.duration || 0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [durationSec, setDurationSec] = useState(msg.media.duration || 0);
-  const soundRef = useRef(null);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    const tick = () => {
+      const d = player.duration || 0;
+      const t = player.currentTime || 0;
+      const playing = player.playing;
+      setDuration((prev) => (Math.abs(prev - d) > 0.1 ? d : prev));
+      setCurrentTime(t);
+      setIsPlaying(playing);
+    };
+
+    intervalRef.current = setInterval(tick, POLL_MS);
+    return () => clearInterval(intervalRef.current);
+  }, [player]);
+
+  const durationSec = duration || msg.media.duration || 0;
+  const progress = durationSec > 0 ? Math.min(1, currentTime / durationSec) : 0;
+  const isFinished = !isPlaying && durationSec > 0 && currentTime >= durationSec - 0.3;
+  const filledBars = Math.round(progress * BAR_COUNT);
 
   const bars =
     resampleWaveform(msg.media.waveform, BAR_COUNT) ||
     seededWaveform(msg.media.url || msg.id || 'voice', BAR_COUNT);
 
-  useEffect(() => {
-    return () => {
-      soundRef.current?.unloadAsync().catch(() => {});
-    };
-  }, []);
-
-  const onPlaybackStatus = (status) => {
-    if (!status.isLoaded) return;
-    if (status.durationMillis) setDurationSec(Math.round(status.durationMillis / 1000));
-    if (status.durationMillis) setProgress(status.positionMillis / status.durationMillis);
-    if (status.didJustFinish) {
-      setIsPlaying(false);
-      setProgress(0);
-      soundRef.current?.setPositionAsync(0).catch(() => {});
-    }
-  };
-
-  const togglePlay = async () => {
+  const togglePlay = () => {
     if (msg.isPending) return;
-    try {
-      if (!soundRef.current) {
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: msg.media.url },
-          { shouldPlay: true },
-          onPlaybackStatus
-        );
-        soundRef.current = newSound;
-        setIsPlaying(true);
-        return;
-      }
-      const status = await soundRef.current.getStatusAsync();
-      if (status.isPlaying) {
-        await soundRef.current.pauseAsync();
-        setIsPlaying(false);
-      } else {
-        await soundRef.current.playAsync();
-        setIsPlaying(true);
-      }
-    } catch (e) {
-      setIsPlaying(false);
+    if (isPlaying) {
+      player.pause();
+    } else if (isFinished) {
+      player.seekTo(0);
+      player.play();
+    } else {
+      player.play();
     }
   };
 
   const iconColor = textColor;
-  const filledBars = Math.round(progress * BAR_COUNT);
-
-  const durationLabel = () => {
-    const s = Math.max(0, durationSec || 0);
-    const m = Math.floor(s / 60);
-    const sec = String(s % 60).padStart(2, '0');
-    return `${m}:${sec}`;
-  };
 
   return (
     <View style={styles.audioWrap}>
-      <TouchableOpacity onPress={togglePlay} style={[styles.audioPlayBtn, { backgroundColor: isOwn ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.08)' }]}>
-        <Ionicons name={isPlaying ? 'pause' : 'play'} size={16} color={iconColor} style={!isPlaying ? { marginLeft: 2 } : null} />
+      <TouchableOpacity
+        onPress={togglePlay}
+        style={[styles.audioPlayBtn, { backgroundColor: isOwn ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.08)' }]}
+      >
+        <Ionicons
+          name={isFinished ? 'refresh' : isPlaying ? 'pause' : 'play'}
+          size={16}
+          color={iconColor}
+          style={(!isPlaying && !isFinished) ? { marginLeft: 2 } : null}
+        />
       </TouchableOpacity>
 
       <View style={styles.audioBarsRow}>
@@ -114,7 +113,11 @@ export function AudioContent({ msg, isOwn, textColor }) {
         ))}
       </View>
 
-      <Text style={[styles.audioDuration, { color: iconColor }]}>{durationLabel()}</Text>
+      <Text style={[styles.audioDuration, { color: iconColor }]}>
+        {(isPlaying || (currentTime > 0 && !isFinished))
+          ? formatDuration(currentTime)
+          : formatDuration(durationSec)}
+      </Text>
     </View>
   );
 }

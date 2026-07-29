@@ -5,6 +5,7 @@ import Avatar from '../common/Avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatMessageTime, formatSeenAt } from '../../utils/dateUtils';
 import { toDisplayUrl } from '../../utils/imageUrl';
+import { useCachedMediaUri } from '../../hooks/useCachedMediaUri';
 import { TextContent } from './TextContent';
 import { VideoContent } from './VideoContent';
 import { AudioContent } from './AudioContent';
@@ -32,12 +33,7 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
 
       <View style={{ maxWidth: '78%', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
         {isSticker ? (
-          <View style={{ position: 'relative' }}>
-            <Image source={{ uri: toDisplayUrl(msg.media.url) }} style={styles.sticker} contentFit="contain" />
-            {msg.isPending && (
-              <Ionicons name="reload-outline" size={14} color="#9ca3af" style={{ position: 'absolute', bottom: 4, right: 4 }} />
-            )}
-          </View>
+          <StickerBubble msg={msg} />
         ) : (
           <View
             style={[
@@ -63,16 +59,7 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
                   </View>
                 )}
                 {isImageMedia && (
-                  <TouchableOpacity activeOpacity={0.85} onPress={() => onImagePress?.({ url: msg.media.hd || msg.media.mid || msg.media.url, media: msg.media, mediaType: 'image' })}>
-                    <View style={{ position: 'relative' }}>
-                      <Image
-                        source={{ uri: toDisplayUrl(msg.media.thumbnail || msg.media.low || msg.media.url) }}
-                        style={styles.mediaImage}
-                        contentFit="cover"
-                      />
-                      {msg.isPending && <UploadOverlay progress={uploadProgress} />}
-                    </View>
-                  </TouchableOpacity>
+                  <ImageThumb msg={msg} onImagePress={onImagePress} uploadProgress={uploadProgress} isPending={msg.isPending} />
                 )}
                 {isVideoMedia && <VideoContent msg={msg} onImagePress={onImagePress} uploadProgress={uploadProgress} />}
                 {hasCaption && (
@@ -110,5 +97,37 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
         )}
       </View>
     </View>
+  );
+}
+
+function StickerBubble({ msg }) {
+  const remoteUrl = toDisplayUrl(msg.media.url);
+  const cachedUri = useCachedMediaUri(!msg.isPending ? remoteUrl : null, 'stickers');
+
+  return (
+    <View style={{ position: 'relative' }}>
+      <Image source={{ uri: cachedUri || remoteUrl }} style={styles.sticker} contentFit="contain" />
+      {msg.isPending && (
+        <Ionicons name="reload-outline" size={14} color="#9ca3af" style={{ position: 'absolute', bottom: 4, right: 4 }} />
+      )}
+    </View>
+  );
+}
+
+function ImageThumb({ msg, onImagePress, uploadProgress, isPending }) {
+  const remoteUrl = toDisplayUrl(msg.media.thumbnail || msg.media.low || msg.media.url);
+  const cachedUri = useCachedMediaUri(!isPending ? remoteUrl : null, 'images');
+
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={() => onImagePress?.({ url: msg.media.hd || msg.media.mid || msg.media.url, media: msg.media, mediaType: 'image' })}>
+      <View style={{ position: 'relative' }}>
+        <Image
+          source={{ uri: cachedUri || remoteUrl }}
+          style={styles.mediaImage}
+          contentFit="cover"
+        />
+        {isPending && <UploadOverlay progress={uploadProgress} />}
+      </View>
+    </TouchableOpacity>
   );
 }

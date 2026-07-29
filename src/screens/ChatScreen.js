@@ -377,7 +377,7 @@ export default function ChatScreen({ route, navigation }) {
     setInputMessage('');
     setPendingMedia(null);
 
-    const localPreview = localMedia ? { type: localMedia.type, url: localMedia.uri, isPending: true } : null;
+    const localPreview = localMedia ? { type: localMedia.type, url: localMedia.uri, duration: localMedia.duration, isPending: true } : null;
     const { uuid } = sendOptimistic(text, localPreview);
     const originalCacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
 

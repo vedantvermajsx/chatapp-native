@@ -1,26 +1,35 @@
-import React, { useRef } from 'react';
+import React, { useEffect } from 'react';
 import { TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { useAudioRecorder, useAudioRecorderState, RecordingPresets, getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import { styles } from './styles';
 
-export default function ChatVoiceRecorder({ onAudioReady, theme, isRecording, setIsRecording }) {
-  const recordingRef = useRef(null);
+export default function ChatVoiceRecorder({ onAudioReady, theme, isRecording, setIsRecording, onDurationChange }) {
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(recorder, 500);
+
+  useEffect(() => {
+    if (isRecording) {
+      const sec = Math.floor((recorderState.durationMillis || 0) / 1000);
+      onDurationChange?.(sec);
+    } else {
+      onDurationChange?.(0);
+    }
+  }, [recorderState.durationMillis, isRecording, onDurationChange]);
 
   const toggleRecording = async () => {
     if (isRecording) {
       try {
-        const recording = recordingRef.current;
-        recordingRef.current = null;
-        await recording?.stopAndUnloadAsync();
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-        const uri = recording?.getURI();
+        const durationSec = Math.round((recorderState.durationMillis || 0) / 1000);
+        await recorder.stop();
+        const uri = recorder.uri;
         setIsRecording(false);
         if (uri && onAudioReady) {
           onAudioReady({
             uri,
             mimeType: 'audio/m4a',
             fileName: 'voice-message.m4a',
+            duration: durationSec,
           });
         }
       } catch (err) {
@@ -30,14 +39,18 @@ export default function ChatVoiceRecorder({ onAudioReady, theme, isRecording, se
     }
 
     try {
-      const perm = await Audio.requestPermissionsAsync();
-      if (!perm.granted) {
+      const perm = await getRecordingPermissionsAsync();
+      let granted = perm.granted;
+      if (!granted) {
+        const newPerm = await requestRecordingPermissionsAsync();
+        granted = newPerm.granted;
+      }
+      if (!granted) {
         Alert.alert('Permission needed', 'Please allow microphone access to record a voice message.');
         return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      recordingRef.current = recording;
+      await recorder.prepareToRecordAsync();
+      await recorder.record();
       setIsRecording(true);
     } catch (err) {
       Alert.alert('Error', 'Could not access microphone.');

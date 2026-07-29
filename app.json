@@ -50,6 +50,12 @@
             "enableShrinkResourcesInReleaseBuilds": true
           }
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Gatherup to access your microphone for voice messages."
+        }
       ]
     ],
     "extra": {

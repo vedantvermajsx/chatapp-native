@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator, P
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useCachedMediaUri } from '../../hooks/useCachedMediaUri';
+import { warmCache } from '../../utils/mediaCache';
 import { styles } from './styles';
 
 const API_KEY = process.env.EXPO_PUBLIC_KLIPY_API_KEY;
@@ -122,6 +124,7 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
   const handleSelect = (item) => {
     const url = getMediaUrl(item.file, 'sm');
     if (!url) return;
+    warmCache(url, 'stickers');
     onStickerSelect({ type: activeTab === 'stickers' ? 'sticker' : 'gif', url });
   };
 
@@ -162,19 +165,12 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
               const url = getMediaUrl(item.file, 'xs');
               if (!url) return null;
               return (
-                <TouchableOpacity
-                  style={[styles.stickerCell, { backgroundColor: cardBg }]}
+                <StickerCell
+                  url={url}
+                  blurPreview={item.blur_preview}
+                  cardBg={cardBg}
                   onPress={() => handleSelect(item)}
-                >
-                  {item.blur_preview ? (
-                    <Image
-                      source={{ uri: item.blur_preview }}
-                      style={StyleSheet.absoluteFill}
-                      contentFit="cover"
-                    />
-                  ) : null}
-                  <Image source={{ uri: url }} style={styles.stickerCellImg} contentFit="contain" />
-                </TouchableOpacity>
+                />
               );
             }}
             ListFooterComponent={
@@ -222,5 +218,18 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
         <Text style={{ fontSize: 9, fontWeight: '500', color: subText, opacity: 0.6 }}>Powered by KLIPY</Text>
       </View>
     </View>
+  );
+}
+
+function StickerCell({ url, blurPreview, cardBg, onPress }) {
+  const cachedUri = useCachedMediaUri(url, 'stickers');
+
+  return (
+    <TouchableOpacity style={[styles.stickerCell, { backgroundColor: cardBg }]} onPress={onPress}>
+      {blurPreview ? (
+        <Image source={{ uri: blurPreview }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      ) : null}
+      <Image source={{ uri: cachedUri || url }} style={styles.stickerCellImg} contentFit="contain" />
+    </TouchableOpacity>
   );
 }

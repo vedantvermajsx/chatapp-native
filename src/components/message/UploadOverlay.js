@@ -3,7 +3,7 @@ import { styles } from './styles';
 
 export function UploadOverlay({ progress }) {
   return (
-    <View style={StyleSheet.absoluteFill}>
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <View style={styles.uploadDim} />
       <View style={styles.uploadCenter}>
         <ActivityIndicator size="small" color="#fff" />

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Modal, Image, StyleSheet, Dimensions, Text, Alert, ActivityIndicator, Platform } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { toDisplayUrl, addAttachmentFlag } from '../../utils/imageUrl';
+import { useCachedMediaUri } from '../../hooks/useCachedMediaUri';
 import { styles } from './styles';
 
 const QUALITY_OPTIONS = [
@@ -16,10 +17,27 @@ const QUALITY_OPTIONS = [
 export default function ImageZoomModal({ visible, url, media, mediaType = 'image', onClose }) {
   const { width, height } = Dimensions.get('window');
   const [downloadingKey, setDownloadingKey] = useState(null);
-  if (!url) return null;
 
   const isVideo = mediaType === 'video';
   const displayUrl = isVideo ? url : (media?.mid || url);
+  const cachedImageUri = useCachedMediaUri(!isVideo && visible ? toDisplayUrl(displayUrl) : null, 'images');
+  const cachedVideoUri = useCachedMediaUri(isVideo && visible ? displayUrl : null, 'videos');
+  const videoSourceUri = cachedVideoUri || displayUrl;
+
+  const player = useVideoPlayer(visible && isVideo ? videoSourceUri : null, (player) => {
+    player.play();
+  });
+
+  useEffect(() => {
+    if (visible && isVideo && videoSourceUri) {
+      player.replace(videoSourceUri);
+      player.play();
+    } else {
+      player.replace(null);
+    }
+  }, [visible, isVideo, videoSourceUri, player]);
+
+  if (!url) return null;
 
   const qualities = isVideo
     ? [{ key: 'original', label: 'Download', url }]
@@ -61,16 +79,16 @@ export default function ImageZoomModal({ visible, url, media, mediaType = 'image
           <Ionicons name="close" size={26} color="#fff" />
         </TouchableOpacity>
         {isVideo ? (
-          <Video
-            source={{ uri: displayUrl }}
+          <VideoView
+            player={player}
             style={{ width: width * 0.92, height: height * 0.6 }}
-            useNativeControls
-            resizeMode={ResizeMode.CONTAIN}
-            shouldPlay
+            allowsFullscreen
+            allowsPictureInPicture
+            contentFit="contain"
           />
         ) : (
           <Image
-            source={{ uri: toDisplayUrl(displayUrl) }}
+            source={{ uri: cachedImageUri || toDisplayUrl(displayUrl) }}
             style={{ width: width * 0.92, height: height * 0.7 }}
             resizeMode="contain"
           />

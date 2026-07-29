@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import roomService from '../services/room.service';
 import messageService from '../services/message.service';
+import userService from '../services/user.service';
 import { useChatSocket, getActiveChatKey } from '../hooks/useChatSocket';
 import Spinner from '../components/common/Spinner';
 import UserSettingsModal from '../components/modals/UserSettingsModal';
@@ -18,6 +19,7 @@ import RoomSearch from '../components/room/RoomSearch';
 import RoomTabBar from '../components/room/RoomTabBar';
 import RoomRow from '../components/room/RoomRow';
 import PrivateChatRow from '../components/room/PrivateChatRow';
+import UserSearchRow from '../components/room/UserSearchRow';
 import SidebarFooter from '../components/room/SidebarFooter';
 import CreateRoomModal from '../components/room/CreateRoomModal';
 import ThemePickerModal from '../components/room/ThemePickerModal';
@@ -42,6 +44,8 @@ export default function RoomListScreen({ navigation }) {
   const [loadingPrivate, setLoadingPrivate] = useState(false);
   const [joiningRoomId, setJoiningRoomId] = useState(null);
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [userResults, setUserResults] = useState([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
 
   const accent = theme.primary || theme.myMessageBubble || '#008080';
   const borderColor = theme.isLight ? '#e5e7eb' : '#374151';
@@ -290,6 +294,32 @@ export default function RoomListScreen({ navigation }) {
     ]);
   };
 
+  const isUserSearch = activeTab === 'explore' && searchQuery.trim().startsWith('@');
+
+  useEffect(() => {
+    if (!isUserSearch) {
+      setUserResults([]);
+      return;
+    }
+    const q = searchQuery.trim().slice(1);
+    if (!q) {
+      setUserResults([]);
+      return;
+    }
+    setSearchingUsers(true);
+    const t = setTimeout(async () => {
+      try {
+        const results = await userService.searchUsers(q, 5);
+        setUserResults(Array.isArray(results) ? results.slice(0, 5) : []);
+      } catch (e) {
+        setUserResults([]);
+      } finally {
+        setSearchingUsers(false);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [isUserSearch, searchQuery]);
+
   const filteredJoined = useMemo(() => {
     if (!searchQuery) return joinedRooms;
     const q = searchQuery.toLowerCase();
@@ -365,30 +395,51 @@ export default function RoomListScreen({ navigation }) {
     </ScrollView>
   );
 
-  const renderExploreList = () => (
-    <ScrollView
-      refreshControl={<RefreshControl tintColor={accent} refreshing={refreshing} onRefresh={onRefresh} />}
-      contentContainerStyle={{ paddingBottom: 24 }}
-    >
-      {renderSectionHeader('All Groups')}
-      {loadingGlobal ? (
-        <View style={{ padding: 24 }}><Spinner size="large" /></View>
-      ) : filteredGlobal.length === 0 ? (
-        <Text style={styles.emptyInline}>You've joined every available room</Text>
-      ) : (
-        filteredGlobal.map((r) => (
-          <RoomRow
-            key={r._id}
-            item={r}
-            isJoined={false}
-            unreadCounts={unreadCounts}
-            navigation={navigation}
-            handleJoinRoom={handleJoinRoom}
-          />
-        ))
-      )}
-    </ScrollView>
-  );
+  const renderExploreList = () => {
+    if (isUserSearch) {
+      const myId = user?._id || user?.id;
+      const people = userResults.filter((u) => (u.id || u._id) !== myId);
+      return (
+        <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+          {renderSectionHeader('People')}
+          {searchingUsers && people.length === 0 ? (
+            <View style={{ padding: 24 }}><Spinner size="large" /></View>
+          ) : people.length === 0 ? (
+            <Text style={styles.emptyInline}>No users found</Text>
+          ) : (
+            people.map((u) => (
+              <UserSearchRow key={u.id || u._id} user={u} navigation={navigation} />
+            ))
+          )}
+        </ScrollView>
+      );
+    }
+
+    return (
+      <ScrollView
+        refreshControl={<RefreshControl tintColor={accent} refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
+        {renderSectionHeader('All Groups')}
+        {loadingGlobal ? (
+          <View style={{ padding: 24 }}><Spinner size="large" /></View>
+        ) : filteredGlobal.length === 0 ? (
+          <Text style={styles.emptyInline}>You've joined every available room</Text>
+        ) : (
+          filteredGlobal.map((r) => (
+            <RoomRow
+              key={r._id}
+              item={r}
+              isJoined={false}
+              unreadCounts={unreadCounts}
+              navigation={navigation}
+              handleJoinRoom={handleJoinRoom}
+            />
+          ))
+        )}
+      </ScrollView>
+    );
+  };
 
   const renderNewRoomBtn = () => {
     if (activeTab !== 'chats' || user?.role === 'guest') return null;
@@ -415,14 +466,18 @@ export default function RoomListScreen({ navigation }) {
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
         <View style={[styles.root, { backgroundColor: theme.background }]}>
           <SidebarHeader />
-          <RoomSearch searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+          <RoomSearch
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            placeholder={activeTab === 'explore' ? 'Search groups or @username...' : 'Search...'}
+          />
           <RoomTabBar activeTab={activeTab} setActiveTab={setActiveTab} myChatsUnread={myChatsUnread} />
           <View style={{ flex: 1 }}>
             {activeTab === 'chats' && renderChatsList()}
             {activeTab === 'explore' && renderExploreList()}
           </View>
           {renderNewRoomBtn()}
-          <SidebarFooter setShowUserSettings={setShowUserSettings} setShowThemePicker={setShowThemePicker} />
+          <SidebarFooter setShowUserSettings={setShowUserSettings} setShowThemePicker={setShowThemePicker} navigation={navigation} />
 
           <CreateRoomModal
             visible={showCreateRoom}

@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { styles } from './styles';
 
-export default function SidebarFooter({ setShowUserSettings, setShowThemePicker }) {
+export default function SidebarFooter({ setShowUserSettings, setShowThemePicker, navigation }) {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
   const borderColor = theme.isLight ? '#e5e7eb' : '#374151';
@@ -30,6 +30,9 @@ export default function SidebarFooter({ setShowUserSettings, setShowThemePicker 
         )}
         <TouchableOpacity style={styles.footerIconBtn} onPress={() => setShowThemePicker(true)}>
           <Ionicons name="color-palette-outline" size={22} color={theme.otherUsernameColor} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerIconBtn} onPress={() => navigation?.navigate('Storage')}>
+          <Ionicons name="server-outline" size={22} color={theme.otherUsernameColor} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.footerIconBtn}

@@ -9,6 +9,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import GuestScreen from '../screens/GuestScreen';
 import RoomListScreen from '../screens/RoomListScreen';
 import ChatScreen from '../screens/ChatScreen';
+import StorageScreen from '../screens/StorageScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +57,11 @@ export default function RootNavigator() {
           name="Chat"
           component={ChatScreen}
           options={chatOptions}
+        />
+        <Stack.Screen
+          name="Storage"
+          component={StorageScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     );

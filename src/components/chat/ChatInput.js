@@ -30,8 +30,15 @@ export default function ChatInput({
   const [mentionQuery, setMentionQuery] = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const mentionDebounce = useRef(null);
   const MAX_CHARS = 1000;
+
+  const formatRecordingTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   const isTyping = inputMessage.trim().length > 0;
   const hasContent = isTyping || !!pendingMedia;
@@ -147,7 +154,9 @@ export default function ChatInput({
           {isRecording ? (
             <View style={styles.recordingRow}>
               <View style={styles.recordDot} />
-              <Text style={{ color: theme.otherMessageText, fontWeight: '600', fontSize: 13 }}>Recording...</Text>
+              <Text style={{ color: theme.otherMessageText, fontWeight: '600', fontSize: 13 }}>
+                Recording ({formatRecordingTime(recordingDuration)})...
+              </Text>
             </View>
           ) : (
             <TextInput
@@ -181,6 +190,7 @@ export default function ChatInput({
               isRecording={isRecording}
               setIsRecording={setIsRecording}
               onAudioReady={handleVoiceReady}
+              onDurationChange={setRecordingDuration}
             />
           )}
         </View>

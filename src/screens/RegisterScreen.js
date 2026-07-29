@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import authService from '../services/auth.service';
 import { SHARED_BG, SHARED_FORM } from '../styles/sharedAuthStyles';
+import { sanitizeUsernameInput, USERNAME_HINT } from '../utils/validation';
 
 const GENDERS = [
   { label: 'Male', value: 0 },
@@ -147,11 +148,15 @@ export default function RegisterScreen({ navigation }) {
                   autoCapitalize="none"
                   autoCorrect={false}
                   value={username}
-                  onChangeText={(t) => { setUsername(t); if (error) setError(''); }}
+                  onChangeText={(t) => { setUsername(sanitizeUsernameInput(t)); if (error) setError(''); }}
                   editable={!loading}
                 />
               </View>
-              <View style={{ height: 25 }}>{renderUsernameStatus()}</View>
+              <View style={{ height: 25 }}>
+                {renderUsernameStatus() || (
+                  <Text style={styles.statusTextChecking}>{USERNAME_HINT}</Text>
+                )}
+              </View>
             </View>
 
            <View style={[styles.inputWrapper, { borderColor: 'transparent',borderBottomColor: '#00ffff', backgroundColor: 'transparent' }]}>
