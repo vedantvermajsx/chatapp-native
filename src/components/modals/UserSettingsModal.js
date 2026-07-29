@@ -75,7 +75,7 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
       if (result.canceled || !result.assets?.length) return;
 
       const asset = result.assets[0];
-      setAvatarUri(asset.uri);   // show local preview immediately
+      setAvatarUri(asset.uri);   
       setUploadProgress(0);
 
       const uploaded = await messageService.uploadFile(
@@ -98,7 +98,7 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
   };
 
   const handleSave = async () => {
-    if (uploadProgress !== null) return; // still uploading
+    if (uploadProgress !== null) return; 
     setSaving(true);
     try {
       const res = await userService.updateProfile({

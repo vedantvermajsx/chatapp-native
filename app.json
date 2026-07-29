@@ -20,7 +20,9 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -55,16 +57,18 @@
           "android": {
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "-dontwarn expo.modules.kotlin.**\n-keep class expo.modules.kotlin.** { *; }"
+            "extraProguardRules": "-dontwarn expo.modules.kotlin.**\n-keep class expo.modules.kotlin.** { *; }",
+            "enableMinifyInReleaseBuilds": true
           }
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "eas": {
-        "projectId": "8e0e65f5-acd4-4f4e-ac65-dc150a396146"
+        "projectId": "1ef0bd87-e09c-4cf0-8cff-859b8e824513"
       }
     },
-    "owner": "vedantvermajss-team"
+    "owner": "vedantvermajsxs-team"
   }
 }
