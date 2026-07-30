@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Avatar from '../common/Avatar';
+import UserProfileModal from '../modals/UserProfileModal';
 import { useTheme } from '../../contexts/ThemeContext';
 import { styles } from './styles';
 
@@ -7,6 +9,7 @@ export default function UserSearchRow({ user, navigation }) {
   const { theme } = useTheme();
   const accent = theme.primary || theme.myMessageBubble || '#008080';
   const userId = user.id || user._id;
+  const [showProfile, setShowProfile] = useState(false);
 
   const handleStartChat = () => {
     navigation.navigate('Chat', {
@@ -16,17 +19,23 @@ export default function UserSearchRow({ user, navigation }) {
 
   return (
     <View style={styles.roomItem}>
-      <Avatar url={user.avatar} name={user.username} size={44} isOnline={user.isOnline} />
-      <View style={styles.roomInfo}>
-        <Text style={[styles.roomName, { color: theme.otherMessageText }]} numberOfLines={1}>
-          {user.username}
-        </Text>
-        {!!user.bio && (
-          <Text style={[styles.roomDesc, { color: '#9ca3af' }]} numberOfLines={1}>
-            {user.bio}
+      <TouchableOpacity
+        style={[styles.roomItem, { flex: 1, padding: 0 }]}
+        onPress={() => setShowProfile(true)}
+        activeOpacity={0.6}
+      >
+        <Avatar url={user.avatar} name={user.username} size={44} isOnline={user.isOnline} />
+        <View style={styles.roomInfo}>
+          <Text style={[styles.roomName, { color: theme.otherMessageText }]} numberOfLines={1}>
+            {user.username}
           </Text>
-        )}
-      </View>
+          {!!user.bio && (
+            <Text style={[styles.roomDesc, { color: '#9ca3af' }]} numberOfLines={1}>
+              {user.bio}
+            </Text>
+          )}
+        </View>
+      </TouchableOpacity>
       <TouchableOpacity
         style={[userSearchStyles.chatBtn, { backgroundColor: accent }]}
         onPress={handleStartChat}
@@ -34,6 +43,13 @@ export default function UserSearchRow({ user, navigation }) {
       >
         <Text style={userSearchStyles.chatBtnText}>Chat</Text>
       </TouchableOpacity>
+
+      <UserProfileModal
+        visible={showProfile}
+        userId={userId}
+        fallback={{ username: user.username, avatar: user.avatar }}
+        onClose={() => setShowProfile(false)}
+      />
     </View>
   );
 }

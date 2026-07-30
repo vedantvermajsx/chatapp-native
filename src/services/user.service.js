@@ -18,10 +18,20 @@ class UserService {
     return res.data.data;
   }
 
+  async getUserProfile(userId) {
+    const res = await api.get(`${this.basePath}/${userId}/profile`);
+    return res.data?.user;
+  }
+
   async searchUsers(query, limit = 5) {
     const res = await api.get(`${this.basePath}/search`, { params: { q: query, limit } });
     const data = res.data;
-    return Array.isArray(data) ? data : (data?.users || data?.data || []);
+    const list = Array.isArray(data) ? data : (data?.users || data?.data || []);
+    return list.map((u) => ({
+      id: u.userid || u.id || u._id,
+      username: u.username,
+      avatar: u.pfp ?? u.avatar ?? '',
+    }));
   }
 }
 

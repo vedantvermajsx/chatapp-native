@@ -38,6 +38,8 @@ export default function ChatScreen({ route, navigation }) {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loadingMessages, setLoadingMessages] = useState(!!(initialRoom || initialPrivateChat));
+  const [hasMoreOlder, setHasMoreOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [pendingMedia, setPendingMedia] = useState(null);
   const [uploadProgresses, setUploadProgresses] = useState({});
   const [members, setMembers] = useState([]);
@@ -54,6 +56,8 @@ export default function ChatScreen({ route, navigation }) {
   const typingTimeoutRef = useRef(null);
   const emitMarkReadRef = useRef(() => {});
   const emitMarkRoomReadRef = useRef(() => {});
+  const isAtBottomRef = useRef(true);
+  const lastMessageKeyRef = useRef(null);
   const roomId = currentRoom?._id;
   const otherUserId = currentPrivateChat?.id;
   const myId = user?._id || user?.id;
@@ -73,12 +77,14 @@ export default function ChatScreen({ route, navigation }) {
       setCurrentPrivateChat(null);
       setMessages([]);
       setLoadingMessages(true);
+      setHasMoreOlder(false);
     } else if (nextPrivateChat && nextPrivateChat.id !== currentPrivateChat?.id) {
       unreadCountRef.current = route.params?.unreadCount || 0;
       setCurrentPrivateChat(nextPrivateChat);
       setCurrentRoom(null);
       setMessages([]);
       setLoadingMessages(true);
+      setHasMoreOlder(false);
     }
   }, [route.params]);
 
@@ -93,6 +99,7 @@ export default function ChatScreen({ route, navigation }) {
     if (cached?.messages?.length) {
       setMessages(cached.messages.map((m) => normalizeIncomingRoomMessage(m, myId)));
       setLoadingMessages(false);
+      setHasMoreOlder(!!cached.hasMore);
       const last = cached.messages[cached.messages.length - 1];
       if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
       if (unreadCount > 0) await _fetchNewRoomMessages(roomId, cacheKey, cached.messages, myId, setMessages);
@@ -105,6 +112,7 @@ export default function ChatScreen({ route, navigation }) {
       const list = data.messages || data || [];
       const normalized = list.map((m) => normalizeIncomingRoomMessage(m, myId));
       setMessages(normalized);
+      setHasMoreOlder(!!data.hasMore);
       await dbService.saveMessages(cacheKey, normalized, data.hasMore);
       const last = normalized[normalized.length - 1];
       if (last) {
@@ -126,6 +134,7 @@ export default function ChatScreen({ route, navigation }) {
     if (cached?.messages?.length) {
       setMessages(cached.messages.map((m) => normalizeIncomingPrivateMessage(m, myId)));
       setLoadingMessages(false);
+      setHasMoreOlder(!!cached.hasMore);
       _refreshLastReadStatus(otherUserId, myId, setMessages);
       if (unreadCount > 0) {
         await _fetchNewPrivateMessages(otherUserId, cacheKey, cached.messages, myId, setMessages, emitMarkReadRef);
@@ -145,6 +154,7 @@ export default function ChatScreen({ route, navigation }) {
       const normalized = list.map((m) => normalizeIncomingPrivateMessage(m, myId));
       const withRead = applyLastRead(normalized, data.lastRead);
       setMessages(withRead);
+      setHasMoreOlder(!!data.hasMore);
       await dbService.saveMessages(cacheKey, withRead, data.hasMore);
       const last = withRead[withRead.length - 1];
       if (last && !last.isOwn && !last.isSystemMessage) {
@@ -162,9 +172,50 @@ export default function ChatScreen({ route, navigation }) {
     }
   }, [otherUserId, myId]);
 
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingOlder || !hasMoreOlder) return;
+    if (!roomId && !otherUserId) return;
+
+    const oldest = messages.find((m) => !m.isPending);
+    if (!oldest?.timestamp) return;
+
+    setLoadingOlder(true);
+    try {
+      if (roomId) {
+        const data = await messageService.getRoomMessages(roomId, 20, oldest.timestamp);
+        const list = data.messages || data || [];
+        const existingIds = new Set(messages.map((m) => String(m.id)));
+        const older = list
+          .map((m) => normalizeIncomingRoomMessage(m, myId))
+          .filter((m) => !existingIds.has(String(m.id)));
+        if (older.length) {
+          setMessages((prev) => [...older, ...prev]);
+        }
+        setHasMoreOlder(!!data.hasMore);
+      } else if (otherUserId) {
+        const data = await messageService.getPrivateMessages(otherUserId, 20, oldest.timestamp);
+        const list = data.messages || data || [];
+        const existingIds = new Set(messages.map((m) => String(m.id)));
+        const older = list
+          .map((m) => normalizeIncomingPrivateMessage(m, myId))
+          .filter((m) => !existingIds.has(String(m.id)));
+        if (older.length) {
+          setMessages((prev) => [...older, ...prev]);
+        }
+        setHasMoreOlder(!!data.hasMore);
+      }
+    } catch (e) {
+      
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [roomId, otherUserId, myId, messages, loadingOlder, hasMoreOlder]);
+
   useEffect(() => {
     const key = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
     setActiveChatKey(key);
+    isAtBottomRef.current = true;
+    lastMessageKeyRef.current = null;
     return () => setActiveChatKey(null);
   }, [roomId, otherUserId]);
 
@@ -298,9 +349,21 @@ export default function ChatScreen({ route, navigation }) {
     requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
   }, []);
 
+  const handleContentSizeChange = useCallback(() => {
+    const last = messages[messages.length - 1];
+    const lastKey = last ? String(last.id || last.uuid) : null;
+    if (lastKey !== lastMessageKeyRef.current) return; // handled by the effect below
+    if (isAtBottomRef.current) scrollToEnd();
+  }, [messages, scrollToEnd]);
+
   useEffect(() => {
-    scrollToEnd();
-  }, [messages.length, typingIndicator, scrollToEnd]);
+    const last = messages[messages.length - 1];
+    const lastKey = last ? String(last.id || last.uuid) : null;
+    const changed = lastKey !== lastMessageKeyRef.current;
+    lastMessageKeyRef.current = lastKey;
+    if (changed && isAtBottomRef.current) scrollToEnd();
+    else if (typingIndicator && isAtBottomRef.current) scrollToEnd();
+  }, [messages, typingIndicator, scrollToEnd]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -533,8 +596,23 @@ export default function ChatScreen({ route, navigation }) {
             data={messages}
             keyExtractor={(item, i) => String(item.id || item.uuid || i)}
             renderItem={renderItem}
-            onContentSizeChange={scrollToEnd}
+            onContentSizeChange={handleContentSizeChange}
             contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            onScroll={({ nativeEvent }) => {
+              const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
+              if (contentOffset.y < 80) loadMoreMessages();
+              const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+              isAtBottomRef.current = distanceFromBottom < 120;
+            }}
+            scrollEventThrottle={100}
+            ListHeaderComponent={
+              loadingOlder ? (
+                <View style={{ paddingVertical: 10 }}>
+                  <Spinner size="small" color={theme.primary || theme.myMessageBubble || '#008080'} />
+                </View>
+              ) : null
+            }
             ListFooterComponent={typingIndicator ? <TypingIndicator avatar={typingIndicator.avatar} name={typingIndicator.name} charCount={typingIndicator.charCount} /> : null}
             ListEmptyComponent={
               !loadingMessages ? (

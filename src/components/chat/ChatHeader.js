@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
+import UserProfileModal from '../modals/UserProfileModal';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatLastSeen } from '../../utils/dateUtils';
 import { styles } from './styles';
@@ -20,6 +21,8 @@ export default function ChatHeader({
 }) {
   const { theme } = useTheme();
   const borderColor = theme.isLight ? '#cbd5e0' : '#4a5568';
+  const [showProfile, setShowProfile] = useState(false);
+  const otherUserId = currentPrivateChat?.id || currentPrivateChat?._id;
 
   return (
     <View style={[styles.header, { backgroundColor: theme.background, borderBottomColor: borderColor }]}>
@@ -62,7 +65,11 @@ export default function ChatHeader({
         </>
       ) : currentPrivateChat ? (
         <>
-          <View style={styles.titleWrap}>
+          <TouchableOpacity
+            style={styles.titleWrap}
+            onPress={() => setShowProfile(true)}
+            activeOpacity={0.7}
+          >
             <Avatar url={currentPrivateChat.avatar} name={currentPrivateChat.username} size={40} isOnline={currentPrivateChat.isOnline} />
             <View style={{ flex: 1, minWidth: 0, marginLeft: 10 }}>
               <Text style={[styles.name, { color: theme.otherMessageText }]} numberOfLines={1}>
@@ -72,7 +79,7 @@ export default function ChatHeader({
                 {currentPrivateChat.isOnline ? 'Online' : formatLastSeen(currentPrivateChat.lastSeen) || 'Offline'}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <View style={styles.actions}>
             <TouchableOpacity style={styles.iconBtn} onPress={() => onStartCall?.(false)}>
               <Ionicons name="call-outline" size={20} color="#22c55e" />
@@ -81,6 +88,13 @@ export default function ChatHeader({
               <Ionicons name="videocam-outline" size={21} color="#3b82f6" />
             </TouchableOpacity>
           </View>
+
+          <UserProfileModal
+            visible={showProfile}
+            userId={otherUserId}
+            fallback={{ username: currentPrivateChat.username, avatar: currentPrivateChat.avatar }}
+            onClose={() => setShowProfile(false)}
+          />
         </>
       ) : (
         <Text style={[styles.name, { color: theme.otherUsernameColor, opacity: 0.7, flex: 1, textAlign: 'center' }]}>
