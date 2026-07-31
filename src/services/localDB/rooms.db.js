@@ -16,4 +16,9 @@ export const dbRooms = {
   async getCachedJoinedRooms() {
     return readJSON(joinedRoomsKey(), []);
   },
+
+  async removeJoinedRoom(roomId) {
+    const rooms = await readJSON(joinedRoomsKey(), []);
+    await writeJSON(joinedRoomsKey(), rooms.filter((r) => r._id !== roomId));
+  },
 };

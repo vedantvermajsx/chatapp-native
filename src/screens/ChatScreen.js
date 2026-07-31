@@ -513,6 +513,7 @@ export default function ChatScreen({ route, navigation }) {
             try {
               if (isDelete) await roomService.deleteRoom(currentRoom._id);
               else await roomService.leaveRoom(currentRoom._id);
+              await dbService.removeJoinedRoom(currentRoom._id);
               emitLeaveRoom(currentRoom._id);
               navigation.goBack();
             } catch (e) {

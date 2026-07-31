@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   // ── RoomRow / PrivateChatRow (shared)
-  roomItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12 },
+  roomItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, gap: 12,},
   roomInfo: { flex: 1, minWidth: 0 },
   roomName: { fontSize: 14, fontWeight: '600' },
   roomDesc: { fontSize: 12.5, marginTop: 2 },
@@ -32,7 +32,7 @@ export const styles = StyleSheet.create({
   appName: { fontSize: 20, fontWeight: '700', letterSpacing: 0.8 },
 
   // ── SidebarFooter
-  sidebarFooter: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
+  sidebarFooter: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 0, paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
   profileBtn: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
   footerUsername: { fontSize: 13, fontWeight: '600', marginLeft: 8, flexShrink: 1 },
   footerActionsRow: { flexDirection: 'row', gap: 12 },
@@ -54,7 +54,7 @@ export const styles = StyleSheet.create({
   // ── ThemePickerModal
   themeModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'flex-end' },
   themeModalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
-  themeCard: { width: '100%', maxWidth: 420, borderRadius: 20, padding: 15, borderWidth: 1 },
+  themeCard: { width: '100%', maxWidth: 320, borderRadius: 20, padding: 15, borderWidth: 1 },
   themeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   themeCloseBtn: { padding: 8, borderRadius: 20, backgroundColor: 'transparent' },
   themeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../contexts/ThemeContext';
-import Spinner from '../components/common/Spinner';
-import { getCacheStats, clearCache } from '../utils/mediaCache';
+import { useTheme } from '../../contexts/ThemeContext';
+import Spinner from '../../components/common/Spinner';
+import { getCacheStats, clearCache } from '../../utils/mediaCache';
+import { styles as sharedStyles } from './styles';
 
 const CATEGORIES = [
   { kind: 'videos', label: 'Videos', icon: 'videocam-outline', color: '#8b5cf6' },
@@ -25,13 +26,13 @@ function formatBytes(bytes) {
 export default function StorageScreen({ navigation }) {
   const { theme } = useTheme();
   const accent = theme.primary || theme.myMessageBubble || '#008080';
-  const borderColor = theme.isLight ? '#e5e7eb' : '#374151';
-  const cardBg = theme.isLight ? '#f8fafc' : '#1f2937';
+  const borderColor = theme.isLight ? '#e5e7eb' : '#092125ff';
+  const cardBg = theme.isLight ? '#f8fafc' : '#091b1eff';
   const subText = theme.otherUsernameColor;
 
-  const [stats, setStats] = useState(null); // { videos: {size,count}, images: {...}, stickers: {...} }
+  const [stats, setStats] = useState(null); 
   const [loading, setLoading] = useState(true);
-  const [clearingKind, setClearingKind] = useState(null); 
+  const [clearingKind, setClearingKind] = useState(null);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
@@ -106,11 +107,11 @@ export default function StorageScreen({ navigation }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
       <StatusBar style={theme.isLight ? 'dark' : 'light'} />
 
-      <View style={[localStyles.header, { borderBottomColor: borderColor }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={localStyles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+      <View style={[sharedStyles.header, { borderBottomColor: borderColor }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={sharedStyles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color={theme.otherMessageText} />
         </TouchableOpacity>
-        <Text style={[localStyles.headerTitle, { color: theme.otherMessageText }]}>Storage & Data</Text>
+        <Text style={[sharedStyles.headerTitle, { color: theme.otherMessageText }]}>Storage & Data</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -174,30 +175,12 @@ export default function StorageScreen({ navigation }) {
           )}
         </TouchableOpacity>
 
-        <Text style={[localStyles.footnote, { color: subText }]}>
-          Videos, images, stickers, and GIFs are downloaded the first time you open them in a chat, then stored here so you can view them again without an internet connection. Clearing frees up space - nothing is deleted from the chat itself, items just re-download next time you open them.
-        </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const localStyles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  backBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
   summaryCard: {
     borderRadius: 12,
     borderWidth: 1,

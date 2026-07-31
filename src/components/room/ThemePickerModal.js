@@ -6,19 +6,20 @@ import { styles } from './styles';
 export default function ThemePickerModal({ visible, onClose }) {
   const { theme, THEMES, setTheme } = useTheme();
   const accent = theme.primary || theme.myMessageBubble || '#008080';
-  const borderColor = theme.isLight ? '#e5e7eb' : '#374151';
+  const borderColor = theme.isLight ? '#ffffffff' : '#374151';
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[styles.themeModalBackdrop, { backgroundColor: 'transparent' }]}>
+      <View style={[styles.themeModalBackdrop, { backgroundColor: 'transparent'}]}>
         <View
           style={[
             styles.themeCard,
             {
               backgroundColor: theme.background,
               borderColor,
-              borderBottomLeftRadius: 0,
-              borderBottomRightRadius: 0,
+              borderBottomLeftRadius: 10,
+              borderBottomRightRadius: 10,
+              marginBottom:140,
             },
           ]}
         >
@@ -28,7 +29,7 @@ export default function ThemePickerModal({ visible, onClose }) {
               <Ionicons name="close" size={28} color={theme.otherMessageText} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={{ maxHeight: 420, paddingVertical: 10 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ maxHeight: 320, paddingVertical: 5 }} showsVerticalScrollIndicator={false}>
             <View style={styles.themeGrid}>
               {THEMES.map((t) => {
                 const selected = t.id === theme.id;

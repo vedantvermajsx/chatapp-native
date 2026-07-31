@@ -16,7 +16,7 @@ export default function CreateRoomModal({
 }) {
   const { theme } = useTheme();
   const accent = theme.primary || theme.myMessageBubble || '#008080';
-  const borderColor = theme.isLight ? '#e5e7eb' : '#374151';
+  const borderColor = theme.isLight ? '#e5e7eb' : '#161b23ff';
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
@@ -27,7 +27,7 @@ export default function CreateRoomModal({
             style={[
               styles.createModalInput,
               {
-                backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937',
+                backgroundColor: theme.isLight ? '#f3f4f6' : '#141b25ff',
                 borderColor: 'transparent',
               },
             ]}
@@ -46,7 +46,7 @@ export default function CreateRoomModal({
             style={[
               styles.createModalInput,
               {
-                backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937',
+                backgroundColor: theme.isLight ? '#f3f4f6' : '#141b25ff',
                 borderColor: 'transparent',
               },
             ]}

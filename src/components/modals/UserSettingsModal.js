@@ -136,8 +136,8 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
         <View style={[styles.card, { backgroundColor: theme.background, borderColor }]}>
 
           {/* Header */}
-          <View style={[styles.header, { borderColor }]}>
-            <Text style={[styles.title, { color: theme.otherMessageText }]}>Profile Settings</Text>
+          <View style={[styles.header]}>
+            <Text style={[styles.title, {fontSize:14, color: theme.otherMessageText }]}>Profile Settings</Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={20} color={theme.otherUsernameColor} />
             </TouchableOpacity>
@@ -145,7 +145,6 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
 
           <View style={styles.body}>
 
-            {/* Avatar picker */}
             <View style={localStyles.avatarSection}>
               <TouchableOpacity
                 onPress={handleChooseAvatar}
@@ -153,9 +152,8 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
                 style={localStyles.avatarWrapper}
                 disabled={uploadProgress !== null}
               >
-                <Avatar url={displayAvatar} name={username} size={72} />
+                <Avatar url={displayAvatar} name={username} size={54} />
 
-                {/* Upload progress ring overlay */}
                 {uploadProgress !== null && (
                   <View style={localStyles.progressOverlay}>
                     <ActivityIndicator size="small" color="#fff" />
@@ -163,9 +161,8 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
                   </View>
                 )}
 
-                {/* Camera badge */}
                 <View style={[localStyles.cameraBadge, { backgroundColor: accent }]}>
-                  <Ionicons name="camera" size={13} color="#fff" />
+                  <Ionicons name="camera" size={12} color="#fff" />
                 </View>
               </TouchableOpacity>
               <Text style={[localStyles.avatarHint, { color: theme.otherUsernameColor }]}>
@@ -173,8 +170,7 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
               </Text>
             </View>
 
-            {/* Username */}
-            <Text style={[styles.label, { color: theme.otherUsernameColor }]}>Username</Text>
+            <Text style={[styles.label, { color: theme.otherUsernameColor, marginTop: 12 }]}>Username</Text>
             <TextInput
               value={username}
               onChangeText={(t) => setUsername(sanitizeUsernameInput(t))}
@@ -186,7 +182,7 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
             )}
 
             {/* Bio */}
-            <Text style={[styles.label, { color: theme.otherUsernameColor, marginTop: 14 }]}>Bio</Text>
+            <Text style={[styles.label, { color: theme.otherUsernameColor, marginTop: 12 }]}>Bio</Text>
             <TextInput
               value={bio}
               onChangeText={setBio}
@@ -198,7 +194,7 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
             />
           </View>
 
-          <View style={[styles.footer, { borderColor }]}>
+          <View style={[styles.footer]}>
             <TouchableOpacity
               style={[styles.saveBtn, { backgroundColor: accent, opacity: canSave ? 1 : 0.5 }]}
               onPress={handleSave}
@@ -220,7 +216,7 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
 const localStyles = StyleSheet.create({
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 0,
   },
   avatarWrapper: {
     position: 'relative',
@@ -247,12 +243,12 @@ const localStyles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 0,
     borderColor: '#fff',
   },
   avatarHint: {
     fontSize: 11,
-    marginTop: 8,
+    marginTop: 4,
     fontWeight: '500',
   },
 });

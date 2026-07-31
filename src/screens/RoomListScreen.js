@@ -11,7 +11,6 @@ import messageService from '../services/message.service';
 import userService from '../services/user.service';
 import { useChatSocket, getActiveChatKey } from '../hooks/useChatSocket';
 import Spinner from '../components/common/Spinner';
-import UserSettingsModal from '../components/modals/UserSettingsModal';
 import { dbService } from '../services/localDB.service';
 
 import SidebarHeader from '../components/room/SidebarHeader';
@@ -22,10 +21,9 @@ import PrivateChatRow from '../components/room/PrivateChatRow';
 import UserSearchRow from '../components/room/UserSearchRow';
 import SidebarFooter from '../components/room/SidebarFooter';
 import CreateRoomModal from '../components/room/CreateRoomModal';
-import ThemePickerModal from '../components/room/ThemePickerModal';
 
 export default function RoomListScreen({ navigation }) {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const { theme } = useTheme();
   const [joinedRooms, setJoinedRooms] = useState([]);
   const [globalRooms, setGlobalRooms] = useState([]);
@@ -34,8 +32,6 @@ export default function RoomListScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
-  const [showThemePicker, setShowThemePicker] = useState(false);
-  const [showUserSettings, setShowUserSettings] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomDesc, setNewRoomDesc] = useState('');
   const [creatingRoom, setCreatingRoom] = useState(false);
@@ -48,7 +44,7 @@ export default function RoomListScreen({ navigation }) {
   const [searchingUsers, setSearchingUsers] = useState(false);
 
   const accent = theme.primary || theme.myMessageBubble || '#008080';
-  const borderColor = theme.isLight ? '#e5e7eb' : '#374151';
+  const borderColor = theme.isLight ? '#797f89ff' : '#374151';
 
   const loadJoined = useCallback(async () => {
     const cached = await dbService.getCachedJoinedRooms();
@@ -215,8 +211,9 @@ export default function RoomListScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      loadJoined();
       loadUnread();
-    }, [loadUnread])
+    }, [loadJoined, loadUnread])
   );
 
   const onRefresh = async () => {
@@ -446,14 +443,14 @@ export default function RoomListScreen({ navigation }) {
     return (
       <View style={[styles.newRoomWrap, { borderTopColor: borderColor }]}>
         <TouchableOpacity
-          style={[styles.newRoomBtn, { backgroundColor: theme.isLight ? '#f9fafb' : '#1f2937', borderColor }]}
+          style={[styles.newRoomBtn, { backgroundColor: theme.isLight ? '#d5dbe1ff' : '#141b25ff' }]}
           onPress={() => setShowCreateRoom(true)}
           activeOpacity={0.6}
         >
           <View style={[styles.newRoomIcon, { backgroundColor: `${accent}18` }]}>
-            <Ionicons name="add" size={16} color={accent} />
+            <Ionicons name="add" size={20} color={accent} />
           </View>
-          <Text style={[styles.newRoomText, { color: theme.otherMessageText }]}>New Room</Text>
+          <Text style={[styles.newRoomText, { color: theme.otherMessageText }]}>Create new room</Text>
         </TouchableOpacity>
       </View>
     );
@@ -477,7 +474,7 @@ export default function RoomListScreen({ navigation }) {
             {activeTab === 'explore' && renderExploreList()}
           </View>
           {renderNewRoomBtn()}
-          <SidebarFooter setShowUserSettings={setShowUserSettings} setShowThemePicker={setShowThemePicker} navigation={navigation} />
+          <SidebarFooter navigation={navigation} />
 
           <CreateRoomModal
             visible={showCreateRoom}
@@ -488,18 +485,6 @@ export default function RoomListScreen({ navigation }) {
             setNewRoomDesc={setNewRoomDesc}
             creatingRoom={creatingRoom}
             handleCreateRoom={handleCreateRoom}
-          />
-
-          <ThemePickerModal
-            visible={showThemePicker}
-            onClose={() => setShowThemePicker(false)}
-          />
-
-          <UserSettingsModal
-            visible={showUserSettings}
-            user={user}
-            onClose={() => setShowUserSettings(false)}
-            onUpdated={updateUser}
           />
         </View>
       </SafeAreaView>
@@ -513,7 +498,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
   emptyInline: { paddingHorizontal: 16, paddingVertical: 8, color: '#9ca3af', fontSize: 12.5 },
   newRoomWrap: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1 },
-  newRoomBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 16, borderWidth: 1 },
+  newRoomBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 16, borderWidth: 0 },
   newRoomIcon: { width: 28, height: 28, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   newRoomText: { flex: 1, fontSize: 12, fontWeight: '700' },
 });

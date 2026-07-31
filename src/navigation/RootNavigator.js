@@ -9,7 +9,9 @@ import RegisterScreen from '../screens/RegisterScreen';
 import GuestScreen from '../screens/GuestScreen';
 import RoomListScreen from '../screens/RoomListScreen';
 import ChatScreen from '../screens/ChatScreen';
-import StorageScreen from '../screens/StorageScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
+import StorageScreen from '../screens/settings/StorageScreen';
+import SecurityPolicyScreen from '../screens/settings/SecurityPolicyScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -59,8 +61,18 @@ export default function RootNavigator() {
           options={chatOptions}
         />
         <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="Storage"
           component={StorageScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SecurityPolicy"
+          component={SecurityPolicyScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

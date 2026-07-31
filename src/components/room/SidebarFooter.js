@@ -1,21 +1,19 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { styles } from './styles';
 
-export default function SidebarFooter({ setShowUserSettings, setShowThemePicker, navigation }) {
-  const { user, logout } = useAuth();
+export default function SidebarFooter({ navigation }) {
+  const { user } = useAuth();
   const { theme } = useTheme();
-  const borderColor = theme.isLight ? '#e5e7eb' : '#374151';
 
   return (
-    <View style={[styles.sidebarFooter, { borderTopColor: borderColor }]}>
+    <View style={[styles.sidebarFooter]}>
       <TouchableOpacity
         style={styles.profileBtn}
-        onPress={() => user?.role !== 'guest' && setShowUserSettings(true)}
+        onPress={() => navigation?.navigate('Settings')}
       >
         <Avatar url={user?.avatar} name={user?.username} size={32} />
         <Text style={[styles.footerUsername, { color: theme.otherMessageText }]} numberOfLines={1}>
@@ -23,27 +21,8 @@ export default function SidebarFooter({ setShowUserSettings, setShowThemePicker,
         </Text>
       </TouchableOpacity>
       <View style={styles.footerActionsRow}>
-        {user?.role !== 'guest' && (
-          <TouchableOpacity style={styles.footerIconBtn} onPress={() => setShowUserSettings(true)}>
-            <Ionicons name="settings-outline" size={22} color={theme.otherUsernameColor} />
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.footerIconBtn} onPress={() => setShowThemePicker(true)}>
-          <Ionicons name="color-palette-outline" size={22} color={theme.otherUsernameColor} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.footerIconBtn} onPress={() => navigation?.navigate('Storage')}>
-          <Ionicons name="server-outline" size={22} color={theme.otherUsernameColor} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.footerIconBtn}
-          onPress={() =>
-            Alert.alert('Logout', 'Are you sure?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Logout', style: 'destructive', onPress: logout },
-            ])
-          }
-        >
-          <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+        <TouchableOpacity style={styles.footerIconBtn} onPress={() => navigation?.navigate('Settings')}>
+          <Ionicons name="settings-outline" size={22} color={theme.otherUsernameColor} />
         </TouchableOpacity>
       </View>
     </View>

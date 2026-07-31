@@ -1,4 +1,3 @@
-import React from 'react';
 import { useCall } from '../../contexts/CallContext';
 import CallErrorScreen from './CallErrorScreen';
 import IncomingCallScreen from './IncomingCallScreen';

@@ -2,9 +2,9 @@ import { StyleSheet, Platform } from 'react-native';
 
 export const styles = StyleSheet.create({
   // ── Shared modal styles
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   card: { width: '100%', maxWidth: 400, borderRadius: 22, borderWidth: 1, overflow: 'hidden' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18, borderBottomWidth: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18, borderBottomWidth: 0 },
   title: { fontSize: 17, fontWeight: '700' },
   body: { padding: 18 },
   label: { fontSize: 12.5, fontWeight: '700' },

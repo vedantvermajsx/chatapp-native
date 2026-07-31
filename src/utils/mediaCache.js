@@ -112,7 +112,6 @@ export async function clearCache(kind) {
   try {
     if (dir.exists) dir.delete();
   } catch {
-    // ignore
   }
 }
 
