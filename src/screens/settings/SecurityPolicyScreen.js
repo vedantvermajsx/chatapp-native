@@ -7,9 +7,9 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { styles } from './styles';
 
 const LINKS = [
-  { key: 'privacy', label: 'Privacy Policy', icon: 'shield-checkmark-outline', url: 'https://example.com/privacy' },
-  { key: 'terms', label: 'Terms of Service', icon: 'document-text-outline', url: 'https://example.com/terms' },
-  { key: 'licenses', label: 'Open Source Licenses', icon: 'code-slash-outline', url: 'https://example.com/licenses' },
+  { key: 'privacy', label: 'Privacy Policy', icon: 'shield-checkmark-outline', url: 'https://gatherup-now.onrender.com/#/privacy' },
+  { key: 'terms', label: 'Terms of Service', icon: 'document-text-outline', url: 'https://gatherup-now.onrender.com/#/terms' },
+  { key: 'licenses', label: 'Open Source Licenses', icon: 'code-slash-outline', url: 'https://raw.githubusercontent.com/vedantvermajsx/chatapp-native/refs/heads/master/LICENSE' },
 ];
 
 export default function SecurityPolicyScreen({ navigation }) {
@@ -44,7 +44,7 @@ export default function SecurityPolicyScreen({ navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowLabel, { color: theme.otherMessageText }]}>End-to-end session</Text>
               <Text style={[styles.rowSub, { color: subText }]}>
-                Your login is protected with a secure token stored only on this device.
+                Your login is protected with a secure token stored only on your device.
               </Text>
             </View>
           </View>
@@ -55,7 +55,7 @@ export default function SecurityPolicyScreen({ navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowLabel, { color: theme.otherMessageText }]}>Signed in on this device</Text>
               <Text style={[styles.rowSub, { color: subText }]}>
-                Use Logout in Settings if this isn't your device or you want to end this session.
+                Use Logout in Settings if this isn't your device.
               </Text>
             </View>
           </View>
@@ -76,15 +76,6 @@ export default function SecurityPolicyScreen({ navigation }) {
               <Ionicons name="open-outline" size={16} color={subText} />
             </TouchableOpacity>
           ))}
-        </View>
-
-        <View style={styles.paragraphBlock}>
-          <Text style={[styles.paragraphTitle, { color: theme.otherMessageText }]}>How we handle your data</Text>
-          <Text style={[styles.paragraphText, { color: subText }]}>
-            Messages and media are stored to keep your chats in sync across sessions. Cached media lives
-            only on this device and can be cleared anytime from Storage & Data in Settings. Deleting the
-            app or clearing app data removes everything stored locally.
-          </Text>
         </View>
 
       </ScrollView>

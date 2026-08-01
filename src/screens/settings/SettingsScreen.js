@@ -35,7 +35,7 @@ export default function SettingsScreen({ navigation }) {
   const handleClearData = () => {
     Alert.alert(
       'Clear app data?',
-      'This removes all locally stored chats, rooms and unread counts on this device. Nothing on the server is affected, and data will re-sync next time you open a chat.',
+      'This removes all local data from this device.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

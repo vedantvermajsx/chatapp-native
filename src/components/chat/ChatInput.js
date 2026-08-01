@@ -148,7 +148,7 @@ export default function ChatInput({
       <View style={styles.inputRow}>
          <View style={[styles.inputPill, { backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937' }]}>
           <TouchableOpacity style={styles.pillIconBtn} onPress={handleAttach} disabled={disabled || !!pendingMedia || isRecording}>
-            <Ionicons name="attach-outline" size={22} color={theme.otherUsernameColor} />
+            <Ionicons name="attach-outline"  size={24} color={theme.otherUsernameColor} />
           </TouchableOpacity>
 
           {isRecording ? (

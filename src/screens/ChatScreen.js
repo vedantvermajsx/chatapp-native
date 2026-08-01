@@ -602,7 +602,8 @@ export default function ChatScreen({ route, navigation }) {
             maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             onScroll={({ nativeEvent }) => {
               const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
-              if (contentOffset.y < 80) loadMoreMessages();
+              const wasAtBottom = isAtBottomRef.current;
+              if (contentOffset.y < 80 && !wasAtBottom) loadMoreMessages();
               const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
               isAtBottomRef.current = distanceFromBottom < 120;
             }}

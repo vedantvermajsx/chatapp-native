@@ -1,6 +1,7 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, ToastAndroid } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import Avatar from '../common/Avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatMessageTime, formatSeenAt } from '../../utils/dateUtils';
@@ -11,6 +12,14 @@ import { VideoContent } from './VideoContent';
 import { AudioContent } from './AudioContent';
 import { UploadOverlay } from './UploadOverlay';
 import { styles } from './styles';
+
+function handleLongPressCopy(text) {
+  if (!text) return;
+
+  Clipboard.setStringAsync(text);
+
+  ToastAndroid.show('Copied to clipboard', ToastAndroid.SHORT);
+}
 
 export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagged, topRadius, bottomRadius, onImagePress, uploadProgress }) {
   const { theme } = useTheme();
@@ -35,7 +44,9 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
         {isSticker ? (
           <StickerBubble msg={msg} />
         ) : (
-          <View
+          <Pressable
+            onLongPress={() => handleLongPressCopy(msg.text)}
+            delayLongPress={350}
             style={[
               styles.bubble,
               {
@@ -84,7 +95,7 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
                 <TextContent text={msg.text} textColor={textColor} bubbleBg={bubbleBg} />
               </View>
             )}
-          </View>
+          </Pressable>
         )}
 
         <View style={styles.metaRow}>

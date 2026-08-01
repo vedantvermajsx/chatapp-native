@@ -19,6 +19,7 @@ export async function _fetchNewRoomMessages(roomId, cacheKey, existingRaw, myId,
     if (!latestTimestamp) return;
 
     let hasMore = true;
+    let addedAny = false;
     while (hasMore) {
       const res = await messageService.getRoomMessages(roomId, 20, null, latestTimestamp);
       hasMore = res.hasMore || false;
@@ -29,11 +30,12 @@ export async function _fetchNewRoomMessages(roomId, cacheKey, existingRaw, myId,
       if (!reallyNew.length) break;
 
       merged = [...merged, ...reallyNew];
+      addedAny = true;
       await dbService.mergeNewMessages(cacheKey, reallyNew);
       latestTimestamp = merged[merged.length - 1]?.timestamp || latestTimestamp;
     }
 
-    setMessages(merged.map((m) => normalizeIncomingRoomMessage(m, myId)));
+    if (addedAny) setMessages(merged.map((m) => normalizeIncomingRoomMessage(m, myId)));
   } catch (e) {
     
   }
@@ -47,6 +49,7 @@ export async function _fetchNewPrivateMessages(otherUserId, cacheKey, existingRa
 
     let hasMore = true;
     let lastRead = null;
+    let addedAny = false;
     while (hasMore) {
       const res = await messageService.getPrivateMessages(otherUserId, 20, null, latestTimestamp);
       hasMore = res.hasMore || false;
@@ -57,9 +60,12 @@ export async function _fetchNewPrivateMessages(otherUserId, cacheKey, existingRa
       if (!reallyNew.length) break;
 
       merged = [...merged, ...reallyNew];
+      addedAny = true;
       await dbService.mergeNewMessages(cacheKey, reallyNew);
       latestTimestamp = merged[merged.length - 1]?.timestamp || latestTimestamp;
     }
+
+    if (!addedAny) return;
 
     let normalized = merged.map((m) => normalizeIncomingPrivateMessage(m, myId));
     if (lastRead) normalized = applyLastRead(normalized, lastRead);

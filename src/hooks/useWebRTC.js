@@ -1,10 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
-import {
-  RTCPeerConnection,
-  RTCIceCandidate,
-  RTCSessionDescription,
-  mediaDevices,
-} from 'react-native-webrtc';
+// import {
+//   RTCPeerConnection,
+//   RTCIceCandidate,
+//   RTCSessionDescription,
+//   mediaDevices,
+// } from 'react-native-webrtc';
 
 const ICE_SERVERS = {
   iceServers: [
