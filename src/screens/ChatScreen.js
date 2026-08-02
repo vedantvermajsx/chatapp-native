@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, Text, Keyboard } from 'react-native';
+import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, Text, Keyboard, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,6 +11,7 @@ import { useChatSocket, setActiveChatKey } from '../hooks/useChatSocket';
 import messageService from '../services/message.service';
 import roomService from '../services/room.service';
 import { applyLastRead } from '../utils/applyLastRead';
+import { showApiError } from '../utils/toast';
 import { dbService } from '../services/localDB.service';
 import { 
   _refreshLastReadStatus, 
@@ -17,11 +19,12 @@ import {
   _fetchNewPrivateMessages, 
   normalizeIncomingRoomMessage, 
   normalizeIncomingPrivateMessage, 
-  reconcileIncoming 
+  reconcileIncoming, 
+  dedupeMessages 
 } from '../utils/chatHelpers';
 
 import ChatHeader from '../components/chat/ChatHeader';
-import MessageBubble, { SystemMessage, TypingIndicator } from '../components/message';
+import MessageBubble, { SystemMessage, TypingIndicator, SwipeToReply } from '../components/message';
 import ChatInput from '../components/chat/ChatInput';
 import MembersPanel from '../components/chat/MembersPanel';
 import GroupSettingsModal from '../components/modals/GroupSettingsModal';
@@ -50,6 +53,10 @@ export default function ChatScreen({ route, navigation }) {
   const [leaving, setLeaving] = useState(false);
   const [topInset, setTopInset] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const [loadingNewMessages, setLoadingNewMessages] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const NEW_MESSAGES_BUTTON_THRESHOLD = 20;
   const unreadCountRef = useRef(route.params?.unreadCount || 0);
   const listRef = useRef(null);
   const typingTargetRef = useRef(null);
@@ -58,6 +65,7 @@ export default function ChatScreen({ route, navigation }) {
   const emitMarkRoomReadRef = useRef(() => {});
   const isAtBottomRef = useRef(true);
   const lastMessageKeyRef = useRef(null);
+  const isInitialLoadRef = useRef(true);
   const roomId = currentRoom?._id;
   const otherUserId = currentPrivateChat?.id;
   const myId = user?._id || user?.id;
@@ -78,6 +86,9 @@ export default function ChatScreen({ route, navigation }) {
       setMessages([]);
       setLoadingMessages(true);
       setHasMoreOlder(false);
+      setNewMessagesCount(0);
+      setLoadingNewMessages(false);
+      setReplyingTo(null);
     } else if (nextPrivateChat && nextPrivateChat.id !== currentPrivateChat?.id) {
       unreadCountRef.current = route.params?.unreadCount || 0;
       setCurrentPrivateChat(nextPrivateChat);
@@ -85,11 +96,20 @@ export default function ChatScreen({ route, navigation }) {
       setMessages([]);
       setLoadingMessages(true);
       setHasMoreOlder(false);
+      setNewMessagesCount(0);
+      setLoadingNewMessages(false);
+      setReplyingTo(null);
     }
   }, [route.params]);
 
   
   
+  const scrollToEnd = useCallback((animated = true) => {
+    requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated }));
+  }, []);
+
+  const reversedMessages = useMemo(() => dedupeMessages([...messages].reverse()), [messages]);
+
   const loadRoomMessages = useCallback(async () => {
     if (!roomId) return;
     const cacheKey = `room_${roomId}`;
@@ -100,9 +120,21 @@ export default function ChatScreen({ route, navigation }) {
       setMessages(cached.messages.map((m) => normalizeIncomingRoomMessage(m, myId)));
       setLoadingMessages(false);
       setHasMoreOlder(!!cached.hasMore);
-      const last = cached.messages[cached.messages.length - 1];
-      if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
-      if (unreadCount > 0) await _fetchNewRoomMessages(roomId, cacheKey, cached.messages, myId, setMessages);
+
+      if (unreadCount > NEW_MESSAGES_BUTTON_THRESHOLD) {
+        // Big backlog: don't block/auto-fetch, let the user trigger it via the jump-to-new button.
+        setNewMessagesCount(unreadCount);
+      } else {
+        const last = cached.messages[cached.messages.length - 1];
+        if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
+        if (unreadCount > 0) {
+          setLoadingNewMessages(true);
+          const merged = await _fetchNewRoomMessages(roomId, cacheKey, cached.messages, myId, setMessages);
+          setLoadingNewMessages(false);
+          const newLast = merged[merged.length - 1];
+          if (newLast) emitMarkRoomReadRef.current({ roomId, messageId: newLast.id, timestamp: newLast.timestamp });
+        }
+      }
       return;
     }
 
@@ -119,7 +151,7 @@ export default function ChatScreen({ route, navigation }) {
         emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
       }
     } catch (e) {
-      
+      showApiError(e, 'Could not load messages');
     } finally {
       setLoadingMessages(false);
     }
@@ -136,8 +168,14 @@ export default function ChatScreen({ route, navigation }) {
       setLoadingMessages(false);
       setHasMoreOlder(!!cached.hasMore);
       _refreshLastReadStatus(otherUserId, myId, setMessages);
-      if (unreadCount > 0) {
+
+      if (unreadCount > NEW_MESSAGES_BUTTON_THRESHOLD) {
+        // Big backlog: don't block/auto-fetch, let the user trigger it via the jump-to-new button.
+        setNewMessagesCount(unreadCount);
+      } else if (unreadCount > 0) {
+        setLoadingNewMessages(true);
         await _fetchNewPrivateMessages(otherUserId, cacheKey, cached.messages, myId, setMessages, emitMarkReadRef);
+        setLoadingNewMessages(false);
       } else {
         const last = cached.messages[cached.messages.length - 1];
         if (last && !last.isOwn && !last.isSystemMessage) {
@@ -166,11 +204,47 @@ export default function ChatScreen({ route, navigation }) {
         });
       }
     } catch (e) {
-      
+      showApiError(e, 'Could not load messages');
     } finally {
       setLoadingMessages(false);
     }
   }, [otherUserId, myId]);
+
+  const handleLoadNewMessages = useCallback(async () => {
+    if (loadingNewMessages) return;
+    setLoadingNewMessages(true);
+    isAtBottomRef.current = true;
+
+    try {
+      if (roomId) {
+        const cacheKey = `room_${roomId}`;
+        const cached = await dbService.getMessages(cacheKey);
+        const existingRaw = cached?.messages || [];
+        const merged = await _fetchNewRoomMessages(roomId, cacheKey, existingRaw, myId, setMessages, {
+          onBatch: ({ addedCount }) => {
+            setNewMessagesCount((prev) => Math.max(0, prev - addedCount));
+            scrollToEnd();
+          },
+        });
+        const last = merged[merged.length - 1];
+        if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
+      } else if (otherUserId) {
+        const cacheKey = `private_${otherUserId}`;
+        const cached = await dbService.getMessages(cacheKey);
+        const existingRaw = cached?.messages || [];
+        await _fetchNewPrivateMessages(otherUserId, cacheKey, existingRaw, myId, setMessages, emitMarkReadRef, {
+          onBatch: ({ addedCount }) => {
+            setNewMessagesCount((prev) => Math.max(0, prev - addedCount));
+            scrollToEnd();
+          },
+        });
+      }
+    } finally {
+      setNewMessagesCount(0);
+      setLoadingNewMessages(false);
+      scrollToEnd();
+    }
+  }, [roomId, otherUserId, myId, loadingNewMessages, scrollToEnd]);
 
   const loadMoreMessages = useCallback(async () => {
     if (loadingOlder || !hasMoreOlder) return;
@@ -184,28 +258,26 @@ export default function ChatScreen({ route, navigation }) {
       if (roomId) {
         const data = await messageService.getRoomMessages(roomId, 20, oldest.timestamp);
         const list = data.messages || data || [];
-        const existingIds = new Set(messages.map((m) => String(m.id)));
-        const older = list
-          .map((m) => normalizeIncomingRoomMessage(m, myId))
-          .filter((m) => !existingIds.has(String(m.id)));
-        if (older.length) {
-          setMessages((prev) => [...older, ...prev]);
-        }
+        const normalizedOlder = list.map((m) => normalizeIncomingRoomMessage(m, myId));
+        setMessages((prev) => {
+          const prevIds = new Set(prev.map((m) => String(m.id ?? m.uuid)));
+          const older = normalizedOlder.filter((m) => !prevIds.has(String(m.id ?? m.uuid)));
+          return dedupeMessages([...older, ...prev]);
+        });
         setHasMoreOlder(!!data.hasMore);
       } else if (otherUserId) {
         const data = await messageService.getPrivateMessages(otherUserId, 20, oldest.timestamp);
         const list = data.messages || data || [];
-        const existingIds = new Set(messages.map((m) => String(m.id)));
-        const older = list
-          .map((m) => normalizeIncomingPrivateMessage(m, myId))
-          .filter((m) => !existingIds.has(String(m.id)));
-        if (older.length) {
-          setMessages((prev) => [...older, ...prev]);
-        }
+        const normalizedOlder = list.map((m) => normalizeIncomingPrivateMessage(m, myId));
+        setMessages((prev) => {
+          const prevIds = new Set(prev.map((m) => String(m.id ?? m.uuid)));
+          const older = normalizedOlder.filter((m) => !prevIds.has(String(m.id ?? m.uuid)));
+          return dedupeMessages([...older, ...prev]);
+        });
         setHasMoreOlder(!!data.hasMore);
       }
     } catch (e) {
-      
+      showApiError(e, 'Could not load older messages');
     } finally {
       setLoadingOlder(false);
     }
@@ -216,6 +288,7 @@ export default function ChatScreen({ route, navigation }) {
     setActiveChatKey(key);
     isAtBottomRef.current = true;
     lastMessageKeyRef.current = null;
+    isInitialLoadRef.current = true;
     return () => setActiveChatKey(null);
   }, [roomId, otherUserId]);
 
@@ -234,6 +307,7 @@ export default function ChatScreen({ route, navigation }) {
         setMembers(list);
       } catch (e) {
         setMembers([]);
+        showApiError(e, 'Could not load members');
       } finally {
         setLoadingMembers(false);
       }
@@ -345,24 +419,14 @@ export default function ChatScreen({ route, navigation }) {
   }, [currentPrivateChat, currentRoom, typingUsers, otherUserId, roomId]);
 
   
-  const scrollToEnd = useCallback(() => {
-    requestAnimationFrame(() => listRef.current?.scrollToEnd?.({ animated: true }));
-  }, []);
-
-  const handleContentSizeChange = useCallback(() => {
-    const last = messages[messages.length - 1];
-    const lastKey = last ? String(last.id || last.uuid) : null;
-    if (lastKey !== lastMessageKeyRef.current) return; // handled by the effect below
-    if (isAtBottomRef.current) scrollToEnd();
-  }, [messages, scrollToEnd]);
-
   useEffect(() => {
     const last = messages[messages.length - 1];
     const lastKey = last ? String(last.id || last.uuid) : null;
     const changed = lastKey !== lastMessageKeyRef.current;
     lastMessageKeyRef.current = lastKey;
-    if (changed && isAtBottomRef.current) scrollToEnd();
+    if (changed && !isInitialLoadRef.current && isAtBottomRef.current) scrollToEnd();
     else if (typingIndicator && isAtBottomRef.current) scrollToEnd();
+    isInitialLoadRef.current = false;
   }, [messages, typingIndicator, scrollToEnd]);
 
   useEffect(() => {
@@ -371,7 +435,7 @@ export default function ChatScreen({ route, navigation }) {
     return () => sub.remove();
   }, [scrollToEnd]);
 
-  const sendOptimistic = (text, media) => {
+  const sendOptimistic = (text, media, replyTo) => {
     const uuid = uuidv4();
     const optimistic = {
       id: uuid,
@@ -383,6 +447,8 @@ export default function ChatScreen({ route, navigation }) {
       isOwn: true,
       isPending: true,
       timestamp: new Date().toISOString(),
+      replyTo: replyTo || null,
+      taggedUser: replyTo?.senderId || null,
     };
     
     const cacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
@@ -395,7 +461,7 @@ export default function ChatScreen({ route, navigation }) {
     return { uuid, optimistic };
   };
 
-  const resolveOptimistic = useCallback((uuid, response, media, originalCacheKey) => {
+  const resolveOptimistic = useCallback((uuid, response, media, originalCacheKey, replyTo) => {
     setMessages((prev) => {
       const idx = prev.findIndex((m) => m.uuid === uuid || m.id === uuid);
       if (idx === -1) return prev;
@@ -423,6 +489,8 @@ export default function ChatScreen({ route, navigation }) {
             isOwn: true,
             isPending: false,
             timestamp: response?.timestamp || new Date().toISOString(),
+            replyTo: replyTo || null,
+            taggedUser: replyTo?.senderId || null,
           };
           await dbService.removeMessage(originalCacheKey, uuid);
           await dbService.addMessage(originalCacheKey, resolvedMessage);
@@ -437,11 +505,15 @@ export default function ChatScreen({ route, navigation }) {
     const text = inputMessage.trim();
     if (!text && !pendingMedia) return;
     const localMedia = pendingMedia;
+    const replySnapshot = replyingTo
+      ? { messageId: replyingTo.id, text: replyingTo.text, username: replyingTo.username, media: replyingTo.media, senderId: replyingTo.senderId }
+      : null;
     setInputMessage('');
     setPendingMedia(null);
+    setReplyingTo(null);
 
     const localPreview = localMedia ? { type: localMedia.type, url: localMedia.uri, duration: localMedia.duration, isPending: true } : null;
-    const { uuid } = sendOptimistic(text, localPreview);
+    const { uuid } = sendOptimistic(text, localPreview, replySnapshot);
     const originalCacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
 
     try {
@@ -455,7 +527,7 @@ export default function ChatScreen({ route, navigation }) {
 
       let response;
       if (roomId) {
-        response = await messageService.sendRoomMessage({ roomId, text, media: finalMedia, uuid });
+        response = await messageService.sendRoomMessage({ roomId, text, media: finalMedia, uuid, replyTo: replySnapshot, taggedUser: replySnapshot?.senderId });
       } else if (otherUserId) {
         response = await messageService.sendPrivateMessage({
           receiverId: otherUserId,
@@ -463,11 +535,13 @@ export default function ChatScreen({ route, navigation }) {
           media: finalMedia,
           uuid,
           receiverModel: currentPrivateChat?.role === 'guest' ? 'Guest' : 'User',
+          replyTo: replySnapshot,
+          taggedUser: replySnapshot?.senderId,
         });
       }
-      resolveOptimistic(uuid, response, finalMedia, originalCacheKey);
+      resolveOptimistic(uuid, response, finalMedia, originalCacheKey, replySnapshot);
     } catch (e) {
-      Alert.alert('Failed to send', e?.response?.data?.message || 'Message could not be delivered. It will stay marked as pending.');
+      showApiError(e, 'Message not delivered (still pending)');
     } finally {
       setUploadProgresses((prev) => {
         const next = { ...prev };
@@ -478,11 +552,15 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const handleStickerSend = async (sticker) => {
-    const { uuid } = sendOptimistic('', sticker);
+    const replySnapshot = replyingTo
+      ? { messageId: replyingTo.id, text: replyingTo.text, username: replyingTo.username, media: replyingTo.media, senderId: replyingTo.senderId }
+      : null;
+    setReplyingTo(null);
+    const { uuid } = sendOptimistic('', sticker, replySnapshot);
     const originalCacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
     try {
       let response;
-      if (roomId) response = await messageService.sendRoomMessage({ roomId, text: '', media: sticker, uuid });
+      if (roomId) response = await messageService.sendRoomMessage({ roomId, text: '', media: sticker, uuid, replyTo: replySnapshot, taggedUser: replySnapshot?.senderId });
       else if (otherUserId) {
         response = await messageService.sendPrivateMessage({
           receiverId: otherUserId,
@@ -490,10 +568,14 @@ export default function ChatScreen({ route, navigation }) {
           media: sticker,
           uuid,
           receiverModel: currentPrivateChat?.role === 'guest' ? 'Guest' : 'User',
+          replyTo: replySnapshot,
+          taggedUser: replySnapshot?.senderId,
         });
       }
-      resolveOptimistic(uuid, response, sticker, originalCacheKey);
-    } catch (e) {}
+      resolveOptimistic(uuid, response, sticker, originalCacheKey, replySnapshot);
+    } catch (e) {
+      showApiError(e, 'Sticker not delivered (still pending)');
+    }
   };
 
   
@@ -517,7 +599,7 @@ export default function ChatScreen({ route, navigation }) {
               emitLeaveRoom(currentRoom._id);
               navigation.goBack();
             } catch (e) {
-              Alert.alert('Error', e?.response?.data?.message || 'Something went wrong');
+              showApiError(e, isDelete ? 'Could not delete room' : 'Could not leave room');
             } finally {
               setLeaving(false);
             }
@@ -542,21 +624,31 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   
+  const handleJumpToReply = useCallback((replyTo) => {
+    if (!replyTo?.messageId) return;
+    const idx = reversedMessages.findIndex((m) => String(m.id) === String(replyTo.messageId));
+    if (idx === -1) return;
+    listRef.current?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0.5 });
+  }, [reversedMessages]);
+
   const renderItem = ({ item }) => {
     if (item.isSystemMessage) {
       return <SystemMessage msg={item} isPrivateChat={!!currentPrivateChat} />;
     }
     return (
-      <MessageBubble
-        msg={item}
-        isOwn={item.isOwn}
-        isPrivateChat={!!currentPrivateChat}
-        showUsername={!item.isOwn && !!currentRoom}
-        topRadius={{ tl: 18, tr: 18 }}
-        bottomRadius={{ bl: item.isOwn ? 18 : 4, br: item.isOwn ? 4 : 18 }}
-        onImagePress={setZoomMedia}
-        uploadProgress={uploadProgresses[item.uuid] ?? uploadProgresses[item.id]}
-      />
+      <SwipeToReply disabled={item.isPending} isOwn={item.isOwn} onReply={() => setReplyingTo(item)}>
+        <MessageBubble
+          msg={item}
+          isOwn={item.isOwn}
+          isPrivateChat={!!currentPrivateChat}
+          showUsername={!item.isOwn && !!currentRoom}
+          topRadius={{ tl: 18, tr: 18 }}
+          bottomRadius={{ bl: item.isOwn ? 18 : 4, br: item.isOwn ? 4 : 18 }}
+          onImagePress={setZoomMedia}
+          uploadProgress={uploadProgresses[item.uuid] ?? uploadProgresses[item.id]}
+          onReplyPress={handleJumpToReply}
+        />
+      </SwipeToReply>
     );
   };
 
@@ -592,39 +684,70 @@ export default function ChatScreen({ route, navigation }) {
             <Spinner size="large" color={theme.primary || theme.myMessageBubble || '#008080'} />
           </View>
         ) : (
-          <FlatList
-            ref={listRef}
-            data={messages}
-            keyExtractor={(item, i) => String(item.id || item.uuid || i)}
-            renderItem={renderItem}
-            onContentSizeChange={handleContentSizeChange}
-            contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-            onScroll={({ nativeEvent }) => {
-              const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
-              const wasAtBottom = isAtBottomRef.current;
-              if (contentOffset.y < 80 && !wasAtBottom) loadMoreMessages();
-              const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
-              isAtBottomRef.current = distanceFromBottom < 120;
-            }}
-            scrollEventThrottle={100}
-            ListHeaderComponent={
-              loadingOlder ? (
-                <View style={{ paddingVertical: 10 }}>
-                  <Spinner size="small" color={theme.primary || theme.myMessageBubble || '#008080'} />
-                </View>
-              ) : null
-            }
-            ListFooterComponent={typingIndicator ? <TypingIndicator avatar={typingIndicator.avatar} name={typingIndicator.name} charCount={typingIndicator.charCount} /> : null}
-            ListEmptyComponent={
-              !loadingMessages ? (
-                <View style={styles.emptyWrap}>
-                  <Text style={[styles.emptyText, { color: theme.otherMessageText }]}>No messages yet</Text>
-                  <Text style={styles.emptySub}>Be the first to say hi 👋</Text>
-                </View>
-              ) : null
-            }
-          />
+          <View style={{ flex: 1 }}>
+            <FlatList
+              ref={listRef}
+              data={reversedMessages}
+              inverted
+              keyExtractor={(item, i) => String(item.id || item.uuid || i)}
+              renderItem={renderItem}
+              contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
+              onScroll={({ nativeEvent }) => {
+                const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
+                const wasAtBottom = isAtBottomRef.current;
+                const distanceFromTop = contentSize.height - layoutMeasurement.height - contentOffset.y;
+                if (distanceFromTop < 80 && !wasAtBottom) loadMoreMessages();
+                isAtBottomRef.current = contentOffset.y < 120;
+              }}
+              scrollEventThrottle={100}
+              onScrollToIndexFailed={() => {}}
+              ListHeaderComponent={
+                <>
+                  {loadingNewMessages && (
+                    <View style={{ paddingVertical: 10 }}>
+                      <Spinner size="small" color={theme.primary || theme.myMessageBubble || '#008080'} />
+                    </View>
+                  )}
+                  {typingIndicator ? (
+                    <TypingIndicator avatar={typingIndicator.avatar} name={typingIndicator.name} charCount={typingIndicator.charCount} />
+                  ) : null}
+                </>
+              }
+              ListFooterComponent={
+                loadingOlder ? (
+                  <View style={{ paddingVertical: 10 }}>
+                    <Spinner size="small" color={theme.primary || theme.myMessageBubble || '#008080'} />
+                  </View>
+                ) : null
+              }
+              ListEmptyComponent={
+                !loadingMessages ? (
+                  <View style={styles.emptyWrap}>
+                    <Text style={[styles.emptyText, { color: theme.otherMessageText }]}>No messages yet</Text>
+                    <Text style={styles.emptySub}>Be the first to say hi 👋</Text>
+                  </View>
+                ) : null
+              }
+            />
+
+            {newMessagesCount > 0 && (
+              <TouchableOpacity
+                style={[styles.jumpButton, { backgroundColor: theme.primary || theme.myMessageBubble || '#008080' }]}
+                onPress={handleLoadNewMessages}
+                disabled={loadingNewMessages}
+                activeOpacity={0.85}
+              >
+                {loadingNewMessages ? (
+                  <Spinner size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="arrow-down" size={16} color="#fff" />
+                )}
+                <Text style={styles.jumpButtonText}>
+                  {loadingNewMessages ? 'Loading…' : `${newMessagesCount > 99 ? '99+' : newMessagesCount} new`}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         <ChatInput
@@ -641,6 +764,8 @@ export default function ChatScreen({ route, navigation }) {
           onRemoveMedia={() => setPendingMedia(null)}
           onFileSelect={setPendingMedia}
           onStickerSend={handleStickerSend}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
         />
       </KeyboardAvoidingView>
       <SafeAreaView edges={['bottom']} style={{ backgroundColor: theme.background }} />
@@ -681,4 +806,21 @@ const styles = StyleSheet.create({
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 4 },
   emptyText: { fontSize: 15, fontWeight: '600' },
   emptySub: { fontSize: 13, color: '#9ca3af' },
+  jumpButton: {
+    position: 'absolute',
+    alignSelf: 'center',
+    bottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  jumpButtonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
 });

@@ -1,0 +1,16 @@
+.git
+android/build
+android/app/build
+android/.gradle
+ios/Pods
+ios/build
+*.log
+.DS_Store
+node_modules
+.env
+.env.production
+android/app/libs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+node_modules_cache

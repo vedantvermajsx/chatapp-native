@@ -12,6 +12,7 @@ import userService from '../services/user.service';
 import { useChatSocket, getActiveChatKey } from '../hooks/useChatSocket';
 import Spinner from '../components/common/Spinner';
 import { dbService } from '../services/localDB.service';
+import { showApiError } from '../utils/toast';
 
 import SidebarHeader from '../components/room/SidebarHeader';
 import RoomSearch from '../components/room/RoomSearch';
@@ -61,7 +62,10 @@ export default function RoomListScreen({ navigation }) {
       });
       await dbService.saveJoinedRooms(list);
     } catch (e) {
-      if (!cached.length) setJoinedRooms([]);
+      if (!cached.length) {
+        setJoinedRooms([]);
+        showApiError(e, 'Could not load rooms');
+      }
     } finally {
       setLoadingRooms(false);
     }
@@ -78,7 +82,10 @@ export default function RoomListScreen({ navigation }) {
       setGlobalRooms(list);
       await dbService.saveRooms(list, '');
     } catch (e) {
-      if (!cached.length) setGlobalRooms([]);
+      if (!cached.length) {
+        setGlobalRooms([]);
+        showApiError(e, 'Could not load rooms');
+      }
     } finally {
       setLoadingGlobal(false);
     }
@@ -95,7 +102,10 @@ export default function RoomListScreen({ navigation }) {
       setPrivateChats(list);
       await dbService.savePrivateChats(list);
     } catch (e) {
-      if (!cached.length) setPrivateChats([]);
+      if (!cached.length) {
+        setPrivateChats([]);
+        showApiError(e, 'Could not load chats');
+      }
     } finally {
       setLoadingPrivate(false);
     }
@@ -213,7 +223,8 @@ export default function RoomListScreen({ navigation }) {
     useCallback(() => {
       loadJoined();
       loadUnread();
-    }, [loadJoined, loadUnread])
+      loadPrivate();
+    }, [loadJoined, loadUnread, loadPrivate])
   );
 
   const onRefresh = async () => {
@@ -242,7 +253,7 @@ export default function RoomListScreen({ navigation }) {
       setActiveTab('chats');
       navigation.navigate('Chat', { room });
     } catch (e) {
-      Alert.alert('Failed to join', e?.response?.data?.message || 'Could not join room');
+      showApiError(e, 'Failed to join room');
     } finally {
       setJoiningRoomId(null);
     }
@@ -267,7 +278,7 @@ export default function RoomListScreen({ navigation }) {
         navigation.navigate('Chat', { room: newRoom });
       }
     } catch (e) {
-      Alert.alert('Failed', e?.response?.data?.message || 'Could not create room');
+      showApiError(e, 'Failed to create room');
     } finally {
       setCreatingRoom(false);
     }
@@ -284,7 +295,7 @@ export default function RoomListScreen({ navigation }) {
             await messageService.deletePrivateChat(otherUserId);
             setPrivateChats((prev) => prev.filter((c) => (c.otherUser.id || c.otherUser._id) !== otherUserId));
           } catch (e) {
-            Alert.alert('Failed', 'Could not delete chat');
+            showApiError(e, 'Failed to delete chat');
           }
         },
       },

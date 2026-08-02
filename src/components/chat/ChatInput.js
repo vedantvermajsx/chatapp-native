@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { showToast, showApiError } from '../../utils/toast';
 import Avatar from '../common/Avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import roomService from '../../services/room.service';
@@ -24,6 +25,8 @@ export default function ChatInput({
   onRemoveMedia,
   onFileSelect,
   onStickerSend,
+  replyingTo,
+  onCancelReply,
 }) {
   const { theme } = useTheme();
   const [showStickerPicker, setShowStickerPicker] = useState(false);
@@ -91,13 +94,16 @@ export default function ChatInput({
 
   const handleAttach = async () => {
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      }
       if (!perm.granted) {
         Alert.alert('Permission needed', 'Please allow photo library access to attach media.');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ['images', 'videos'],
         quality: 0.8,
       });
       if (result.canceled || !result.assets?.length) return;
@@ -111,7 +117,37 @@ export default function ChatInput({
         type,
       });
     } catch (e) {
-      Alert.alert('Error', e?.message || 'Could not attach media');
+      showApiError(e, 'Could not attach media');
+    }
+  };
+
+  const handleCamera = async () => {
+    try {
+      let camPerm = await ImagePicker.getCameraPermissionsAsync();
+      if (!camPerm.granted) {
+        camPerm = await ImagePicker.requestCameraPermissionsAsync();
+      }
+      if (!camPerm.granted) {
+        Alert.alert('Permission needed', 'Please allow camera access to take a photo or video.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        quality: 0.8,
+        videoMaxDuration: 60,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      const type = asset.mimeType?.startsWith('video/') || asset.type === 'video' ? 'video' : 'image';
+      onFileSelect?.({
+        uri: asset.uri,
+        mimeType: asset.mimeType,
+        fileName: asset.fileName,
+        fileSize: asset.fileSize,
+        type,
+      });
+    } catch (e) {
+      showApiError(e, 'Could not use camera');
     }
   };
 
@@ -130,6 +166,30 @@ export default function ChatInput({
 
       <ChatMediaPreview media={pendingMedia} onRemove={onRemoveMedia} theme={theme} />
 
+
+      {replyingTo && (
+        <View
+          style={[
+            styles.replyPreviewBar,
+            { backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937', borderLeftColor: theme.myMessageBubble || theme.primary || '#008080' },
+          ]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.replyPreviewName, { color: theme.myMessageBubble || theme.primary || '#008080' }]} numberOfLines={1}>
+              Replying to {replyingTo.username || 'message'}
+            </Text>
+            <Text style={[styles.replyPreviewText, { color: theme.otherMessageText }]} numberOfLines={1}>
+              {replyingTo.media
+                ? { image: 'Photo', video: 'Video', audio: 'Voice message', sticker: 'Sticker', gif: 'GIF' }[replyingTo.media.type] || 'Attachment'
+                : replyingTo.text || 'Message'}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onCancelReply} hitSlop={8} style={{ padding: 4 }}>
+            <Ionicons name="close" size={18} color={theme.otherUsernameColor} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {showStickerPicker && (
         <StickerPicker onStickerSelect={handleStickerSelect} onClose={() => setShowStickerPicker(false)} />
       )}
@@ -147,9 +207,17 @@ export default function ChatInput({
 
       <View style={styles.inputRow}>
          <View style={[styles.inputPill, { backgroundColor: theme.isLight ? '#f3f4f6' : '#1f2937' }]}>
-          <TouchableOpacity style={styles.pillIconBtn} onPress={handleAttach} disabled={disabled || !!pendingMedia || isRecording}>
-            <Ionicons name="attach-outline"  size={24} color={theme.otherUsernameColor} />
-          </TouchableOpacity>
+          {!pendingMedia && (
+            <TouchableOpacity style={styles.pillIconBtn} onPress={handleAttach} disabled={disabled || isRecording}>
+              <Ionicons name="attach-outline" size={24} color={theme.otherUsernameColor} />
+            </TouchableOpacity>
+          )}
+
+          {!pendingMedia && (
+            <TouchableOpacity style={styles.pillIconBtn} onPress={handleCamera} disabled={disabled || isRecording}>
+              <Ionicons name="camera-outline" size={22} color={theme.otherUsernameColor} />
+            </TouchableOpacity>
+          )}
 
           {isRecording ? (
             <View style={styles.recordingRow}>

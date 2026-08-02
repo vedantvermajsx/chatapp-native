@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioRecorder, useAudioRecorderState, RecordingPresets, getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
+import { showToast } from '../../utils/toast';
 import { styles } from './styles';
 
 export default function ChatVoiceRecorder({ onAudioReady, theme, isRecording, setIsRecording, onDurationChange }) {
@@ -34,6 +35,7 @@ export default function ChatVoiceRecorder({ onAudioReady, theme, isRecording, se
         }
       } catch (err) {
         setIsRecording(false);
+        showToast(err?.message || 'Could not save recording');
       }
       return;
     }

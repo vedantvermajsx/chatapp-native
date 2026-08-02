@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Modal, Image, StyleSheet, Dimensions, Text, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { toDisplayUrl, addAttachmentFlag } from '../../utils/imageUrl';
 import { useCachedMediaUri } from '../../hooks/useCachedMediaUri';
@@ -59,10 +59,10 @@ export default function ImageZoomModal({ visible, url, media, mediaType = 'image
       const filename = `chat-${isVideo ? 'video' : 'image'}-${label.toLowerCase()}-${Date.now()}`;
       const namedUrl = addAttachmentFlag(fileUrl, filename);
       const ext = isVideo ? 'mp4' : (namedUrl.match(/\.(jpg|jpeg|png|webp|gif)(\?|$)/i)?.[1] || 'jpg');
-      const localPath = `${FileSystem.cacheDirectory}${filename}.${ext}`;
+      const destFile = new File(Paths.cache, `${filename}.${ext}`);
 
-      const { uri } = await FileSystem.downloadAsync(namedUrl, localPath);
-      await MediaLibrary.saveToLibraryAsync(uri);
+      const downloaded = await File.downloadFileAsync(namedUrl, destFile);
+      await MediaLibrary.saveToLibraryAsync(downloaded.uri);
       Alert.alert('Saved', `${isVideo ? 'Video' : 'Image'} saved to your photo library.`);
     } catch (e) {
       Alert.alert('Download failed', e?.message || 'Could not save this file.');

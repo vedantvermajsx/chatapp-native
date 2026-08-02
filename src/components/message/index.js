@@ -1,3 +1,4 @@
+export { SwipeToReply } from './SwipeToReply';
 export { SystemMessage } from './SystemMessage';
 export { TypingIndicator } from './TypingIndicator';
 export { TextContent } from './TextContent';

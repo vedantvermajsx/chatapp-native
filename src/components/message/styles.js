@@ -15,6 +15,9 @@ export const styles = StyleSheet.create({
   seenText: { fontSize: 10, color: '#9ca3af', alignSelf: 'flex-end', marginTop: 2, marginHorizontal: 4 },
   sticker: { width: 110, height: 110 },
   mediaImage: { width: 200, height: 150 },
+  replyQuote: { borderLeftWidth: 3, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5, marginHorizontal: 8, marginTop: 7 },
+  replyQuoteName: { fontSize: 12, fontWeight: '700', marginBottom: 1 },
+  replyQuoteText: { fontSize: 12.5, opacity: 0.85 },
 
   // ── VideoContent 
   videoThumb: { backgroundColor: '#1f2937', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },

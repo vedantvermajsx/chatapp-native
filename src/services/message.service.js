@@ -5,18 +5,20 @@ import { getMediaMeta, _addQualities } from '../utils/media.utils';
 class MessageService {
   basePath = '/messages';
 
-  async sendRoomMessage({ roomId, text, media, uuid }) {
+  async sendRoomMessage({ roomId, text, media, uuid, replyTo, taggedUser }) {
     const strippedMedia = media ? { url: media.url, type: media.type, duration: media.duration } : null;
     const res = await api.post(`${this.basePath}/send`, {
       roomId,
       message: text,
       media: strippedMedia,
       uuid,
+      ...(replyTo && { replyTo: replyTo.messageId }),
+      ...(taggedUser && { taggedUser }),
     });
     return res.data;
   }
 
-  async sendPrivateMessage({ receiverId, content, receiverModel = 'User', media, uuid, isSystemMessage, systemType }) {
+  async sendPrivateMessage({ receiverId, content, receiverModel = 'User', media, uuid, isSystemMessage, systemType, replyTo, taggedUser }) {
     const strippedMedia = media ? { url: media.url, type: media.type, duration: media.duration } : null;
     const res = await api.post(`${this.basePath}/private/send`, {
       receiverId,
@@ -25,6 +27,8 @@ class MessageService {
       media: strippedMedia,
       uuid,
       ...(isSystemMessage && { isSystemMessage: true, systemType }),
+      ...(replyTo && { replyTo: replyTo.messageId }),
+      ...(taggedUser && { taggedUser }),
     });
     return res.data;
   }

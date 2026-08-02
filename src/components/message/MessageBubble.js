@@ -21,7 +21,7 @@ function handleLongPressCopy(text) {
   ToastAndroid.show('Copied to clipboard', ToastAndroid.SHORT);
 }
 
-export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagged, topRadius, bottomRadius, onImagePress, uploadProgress }) {
+export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagged, topRadius, bottomRadius, onImagePress, uploadProgress, onReplyPress }) {
   const { theme } = useTheme();
 
   const bubbleBg = isOwn ? (msg.isPending ? `${theme.myMessageBubble}CC` : theme.myMessageBubble) : theme.otherMessageBubble;
@@ -35,6 +35,10 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
   const isVisualMedia = isImageMedia || isVideoMedia;
   const hasCaption = !!msg.text;
   const showSenderName = showUsername && !isPrivateChat && !isOwn;
+  const replyTo = msg.replyTo;
+  const replyMediaLabel = replyTo?.media
+    ? { image: '📷 Photo', video: '🎥 Video', audio: '🎤 Voice message', sticker: 'Sticker', gif: 'GIF' }[replyTo.media.type] || 'Attachment'
+    : null;
 
   return (
     <View style={[styles.row, { justifyContent: isOwn ? 'flex-end' : 'flex-start' }]}>
@@ -60,6 +64,26 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
               },
             ]}
           >
+            {replyTo && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onReplyPress?.(replyTo)}
+                style={[
+                  styles.replyQuote,
+                  {
+                    backgroundColor: isOwn ? 'rgba(0,0,0,0.12)' : theme.isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)',
+                    borderLeftColor: usernameColor,
+                  },
+                ]}
+              >
+                <Text style={[styles.replyQuoteName, { color: usernameColor }]} numberOfLines={1}>
+                  {replyTo.username || 'Unknown'}
+                </Text>
+                <Text style={[styles.replyQuoteText, { color: textColor }]} numberOfLines={1}>
+                  {replyMediaLabel || replyTo.text || 'Message'}
+                </Text>
+              </TouchableOpacity>
+            )}
             {isVisualMedia ? (
               <>
                 {showSenderName && (

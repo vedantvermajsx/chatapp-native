@@ -12,6 +12,9 @@ export const styles = StyleSheet.create({
 
   // ── ChatInput 
   inputWrap: { borderTopWidth: 0, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 8, position: 'relative' },
+  replyPreviewBar: { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, marginBottom: 6 },
+  replyPreviewName: { fontSize: 12.5, fontWeight: '700', marginBottom: 1 },
+  replyPreviewText: { fontSize: 12.5, opacity: 0.8 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end' },
   inputPill: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', borderRadius: 22, paddingHorizontal: 6, paddingVertical: 4 },
   pillIconBtn: { paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'center'},
@@ -24,7 +27,7 @@ export const styles = StyleSheet.create({
   mentionText: { fontSize: 13.5, fontWeight: '600', marginLeft: 10 },
 
   // ── ChatMediaPreview 
-  previewWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, padding: 8, marginBottom: 8 },
+  previewWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 4, marginBottom: 8 },
   previewThumb: { width: 44, height: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   previewThumbImg: { width: 44, height: 44, borderRadius: 8, marginRight: 8 },
   previewRemoveBtn: { padding: 5, borderRadius: 999 },
