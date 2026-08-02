@@ -11,10 +11,10 @@ import ChatVoiceRecorder from './ChatVoiceRecorder';
 import ChatMediaPreview from './ChatMediaPreview';
 import { styles } from './styles';
 
+const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export default function ChatInput({
   user,
-  inputMessage,
-  setInputMessage,
   onSend,
   disabled,
   currentRoom,
@@ -29,9 +29,11 @@ export default function ChatInput({
   onCancelReply,
 }) {
   const { theme } = useTheme();
+  const [inputMessage, setInputMessage] = useState('');
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [mentionQuery, setMentionQuery] = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [taggedMention, setTaggedMention] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const mentionDebounce = useRef(null);
@@ -75,21 +77,33 @@ export default function ChatInput({
       setMentionQuery(null);
     }
 
+    if (taggedMention && !new RegExp(`(^|\\s)@${escapeRegExp(taggedMention.username)}(\\s|$)`).test(val)) {
+      setTaggedMention(null);
+    }
+
     if (val.trim()) onTypingActivity?.(val.length);
     else onStopTyping?.();
   };
 
-  const insertMention = (username) => {
+  const insertMention = (member) => {
+    const username = member.username;
     const replaced = inputMessage.replace(/@(\S*)$/, `@${username} `);
     setInputMessage(replaced);
     setMentionQuery(null);
     setMentionSuggestions([]);
+    setTaggedMention({ id: member._id || member.id, username });
   };
 
   const handleSend = () => {
     if (!hasContent || disabled) return;
+    const text = inputMessage.trim();
+    const taggedUserId = taggedMention && new RegExp(`(^|\\s)@${escapeRegExp(taggedMention.username)}(\\s|$)`).test(text)
+      ? taggedMention.id
+      : null;
     onStopTyping?.();
-    onSend();
+    setInputMessage('');
+    setTaggedMention(null);
+    onSend(text, taggedUserId);
   };
 
   const handleAttach = async () => {
@@ -197,7 +211,7 @@ export default function ChatInput({
       {mentionQuery !== null && mentionSuggestions.length > 0 && (
         <View style={[styles.mentionList, { backgroundColor: theme.background, borderColor: theme.isLight ? '#e2e8f0' : '#374151' }]}>
           {mentionSuggestions.map((m) => (
-            <TouchableOpacity key={m._id || m.id} style={styles.mentionItem} onPress={() => insertMention(m.username)}>
+            <TouchableOpacity key={m._id || m.id} style={styles.mentionItem} onPress={() => insertMention(m)}>
               <Avatar url={m.avatar} name={m.username} size={26} />
               <Text style={[styles.mentionText, { color: theme.otherMessageText }]}>@{m.username}</Text>
             </TouchableOpacity>

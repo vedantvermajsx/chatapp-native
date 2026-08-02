@@ -117,6 +117,7 @@ export const useChatSocket = (user, {
   const emitMarkRoomRead = (payload) => socketRef.current?.emit('markRoomRead', payload);
   const emitLeaveRoom = (roomId) => socketRef.current?.emit('leaveRoom', roomId);
   const emitJoinRoom = (payload) => socketRef.current?.emit('joinRoom', payload);
+  const emitClearActiveRoom = () => socketRef.current?.emit('clearActiveRoom');
 
   return {
     connected,
@@ -128,5 +129,6 @@ export const useChatSocket = (user, {
     emitMarkRoomRead,
     emitLeaveRoom,
     emitJoinRoom,
+    emitClearActiveRoom,
   };
 };

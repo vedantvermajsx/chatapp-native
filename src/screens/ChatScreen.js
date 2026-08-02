@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, Text, Keyboard, TouchableOpacity } from 'react-native';
+import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Alert, Text, Keyboard, TouchableOpacity, AppState } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -39,7 +39,6 @@ export default function ChatScreen({ route, navigation }) {
   const [currentRoom, setCurrentRoom] = useState(initialRoom || null);
   const [currentPrivateChat, setCurrentPrivateChat] = useState(initialPrivateChat || null);
   const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState('');
   const [loadingMessages, setLoadingMessages] = useState(!!(initialRoom || initialPrivateChat));
   const [hasMoreOlder, setHasMoreOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -63,6 +62,7 @@ export default function ChatScreen({ route, navigation }) {
   const typingTimeoutRef = useRef(null);
   const emitMarkReadRef = useRef(() => {});
   const emitMarkRoomReadRef = useRef(() => {});
+  const emitClearActiveRoomRef = useRef(() => {});
   const isAtBottomRef = useRef(true);
   const lastMessageKeyRef = useRef(null);
   const isInitialLoadRef = useRef(true);
@@ -122,7 +122,6 @@ export default function ChatScreen({ route, navigation }) {
       setHasMoreOlder(!!cached.hasMore);
 
       if (unreadCount > NEW_MESSAGES_BUTTON_THRESHOLD) {
-        // Big backlog: don't block/auto-fetch, let the user trigger it via the jump-to-new button.
         setNewMessagesCount(unreadCount);
       } else {
         const last = cached.messages[cached.messages.length - 1];
@@ -289,13 +288,29 @@ export default function ChatScreen({ route, navigation }) {
     isAtBottomRef.current = true;
     lastMessageKeyRef.current = null;
     isInitialLoadRef.current = true;
-    return () => setActiveChatKey(null);
+    return () => {
+      setActiveChatKey(null);
+      if (roomId) emitClearActiveRoomRef.current();
+    };
   }, [roomId, otherUserId]);
 
   useEffect(() => {
     if (roomId) loadRoomMessages();
     else if (otherUserId) loadPrivateMessages();
   }, [roomId, otherUserId, loadRoomMessages, loadPrivateMessages]);
+
+  useEffect(() => {
+    if (!roomId) return undefined;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        emitClearActiveRoomRef.current();
+      } else if (nextState === 'active') {
+        const last = messages[messages.length - 1];
+        if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
+      }
+    });
+    return () => subscription.remove();
+  }, [roomId, messages]);
 
   const loadMembers = useCallback(
     async (search = '') => {
@@ -374,7 +389,7 @@ export default function ChatScreen({ route, navigation }) {
     [otherUserId]
   );
 
-  const { socket, typingUsers, emitTyping, emitStopTyping, emitLeaveRoom, emitMarkRead, emitMarkRoomRead } = useChatSocket(user, {
+  const { socket, typingUsers, emitTyping, emitStopTyping, emitLeaveRoom, emitMarkRead, emitMarkRoomRead, emitClearActiveRoom } = useChatSocket(user, {
     currentRoom,
     currentPrivateChat,
     onRoomMessage,
@@ -384,6 +399,7 @@ export default function ChatScreen({ route, navigation }) {
   });
   emitMarkReadRef.current = emitMarkRead;
   emitMarkRoomReadRef.current = emitMarkRoomRead;
+  emitClearActiveRoomRef.current = emitClearActiveRoom;
 
   
   const handleTypingActivity = useCallback(
@@ -435,7 +451,7 @@ export default function ChatScreen({ route, navigation }) {
     return () => sub.remove();
   }, [scrollToEnd]);
 
-  const sendOptimistic = (text, media, replyTo) => {
+  const sendOptimistic = (text, media, replyTo, taggedUserId) => {
     const uuid = uuidv4();
     const optimistic = {
       id: uuid,
@@ -448,7 +464,7 @@ export default function ChatScreen({ route, navigation }) {
       isPending: true,
       timestamp: new Date().toISOString(),
       replyTo: replyTo || null,
-      taggedUser: replyTo?.senderId || null,
+      taggedUser: taggedUserId || null,
     };
     
     const cacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
@@ -461,7 +477,7 @@ export default function ChatScreen({ route, navigation }) {
     return { uuid, optimistic };
   };
 
-  const resolveOptimistic = useCallback((uuid, response, media, originalCacheKey, replyTo) => {
+  const resolveOptimistic = useCallback((uuid, response, media, originalCacheKey, replyTo, taggedUserId) => {
     setMessages((prev) => {
       const idx = prev.findIndex((m) => m.uuid === uuid || m.id === uuid);
       if (idx === -1) return prev;
@@ -490,7 +506,7 @@ export default function ChatScreen({ route, navigation }) {
             isPending: false,
             timestamp: response?.timestamp || new Date().toISOString(),
             replyTo: replyTo || null,
-            taggedUser: replyTo?.senderId || null,
+            taggedUser: taggedUserId || null,
           };
           await dbService.removeMessage(originalCacheKey, uuid);
           await dbService.addMessage(originalCacheKey, resolvedMessage);
@@ -501,19 +517,19 @@ export default function ChatScreen({ route, navigation }) {
     }
   }, [user]);
 
-  const handleSend = async () => {
-    const text = inputMessage.trim();
+  const handleSend = async (text = '', mentionTaggedUserId = null) => {
+    text = text.trim();
     if (!text && !pendingMedia) return;
     const localMedia = pendingMedia;
     const replySnapshot = replyingTo
       ? { messageId: replyingTo.id, text: replyingTo.text, username: replyingTo.username, media: replyingTo.media, senderId: replyingTo.senderId }
       : null;
-    setInputMessage('');
+    const taggedUserId = replySnapshot?.senderId || mentionTaggedUserId || null;
     setPendingMedia(null);
     setReplyingTo(null);
 
     const localPreview = localMedia ? { type: localMedia.type, url: localMedia.uri, duration: localMedia.duration, isPending: true } : null;
-    const { uuid } = sendOptimistic(text, localPreview, replySnapshot);
+    const { uuid } = sendOptimistic(text, localPreview, replySnapshot, taggedUserId);
     const originalCacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
 
     try {
@@ -527,7 +543,7 @@ export default function ChatScreen({ route, navigation }) {
 
       let response;
       if (roomId) {
-        response = await messageService.sendRoomMessage({ roomId, text, media: finalMedia, uuid, replyTo: replySnapshot, taggedUser: replySnapshot?.senderId });
+        response = await messageService.sendRoomMessage({ roomId, text, media: finalMedia, uuid, replyTo: replySnapshot, taggedUser: taggedUserId });
       } else if (otherUserId) {
         response = await messageService.sendPrivateMessage({
           receiverId: otherUserId,
@@ -536,10 +552,10 @@ export default function ChatScreen({ route, navigation }) {
           uuid,
           receiverModel: currentPrivateChat?.role === 'guest' ? 'Guest' : 'User',
           replyTo: replySnapshot,
-          taggedUser: replySnapshot?.senderId,
+          taggedUser: taggedUserId,
         });
       }
-      resolveOptimistic(uuid, response, finalMedia, originalCacheKey, replySnapshot);
+      resolveOptimistic(uuid, response, finalMedia, originalCacheKey, replySnapshot, taggedUserId);
     } catch (e) {
       showApiError(e, 'Message not delivered (still pending)');
     } finally {
@@ -631,26 +647,32 @@ export default function ChatScreen({ route, navigation }) {
     listRef.current?.scrollToIndex?.({ index: idx, animated: true, viewPosition: 0.5 });
   }, [reversedMessages]);
 
-  const renderItem = ({ item }) => {
-    if (item.isSystemMessage) {
-      return <SystemMessage msg={item} isPrivateChat={!!currentPrivateChat} />;
-    }
-    return (
-      <SwipeToReply disabled={item.isPending} isOwn={item.isOwn} onReply={() => setReplyingTo(item)}>
-        <MessageBubble
-          msg={item}
-          isOwn={item.isOwn}
-          isPrivateChat={!!currentPrivateChat}
-          showUsername={!item.isOwn && !!currentRoom}
-          topRadius={{ tl: 18, tr: 18 }}
-          bottomRadius={{ bl: item.isOwn ? 18 : 4, br: item.isOwn ? 4 : 18 }}
-          onImagePress={setZoomMedia}
-          uploadProgress={uploadProgresses[item.uuid] ?? uploadProgresses[item.id]}
-          onReplyPress={handleJumpToReply}
-        />
-      </SwipeToReply>
-    );
-  };
+  const handleReplyToItem = useCallback((item) => setReplyingTo(item), []);
+
+  const renderItem = useCallback(
+    ({ item }) => {
+      if (item.isSystemMessage) {
+        return <SystemMessage msg={item} isPrivateChat={!!currentPrivateChat} />;
+      }
+      return (
+        <SwipeToReply disabled={item.isPending} isOwn={item.isOwn} onReply={() => handleReplyToItem(item)}>
+          <MessageBubble
+            msg={item}
+            isOwn={item.isOwn}
+            isPrivateChat={!!currentPrivateChat}
+            showUsername={!item.isOwn && !!currentRoom}
+            isTagged={!item.isOwn && !!item.taggedUser && String(item.taggedUser) === String(myId)}
+            topRadius={{ tl: 18, tr: 18 }}
+            bottomRadius={{ bl: item.isOwn ? 18 : 4, br: item.isOwn ? 4 : 18 }}
+            onImagePress={setZoomMedia}
+            uploadProgress={uploadProgresses[item.uuid] ?? uploadProgresses[item.id]}
+            onReplyPress={handleJumpToReply}
+          />
+        </SwipeToReply>
+      );
+    },
+    [currentPrivateChat, currentRoom, myId, uploadProgresses, handleJumpToReply, handleReplyToItem]
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -752,8 +774,6 @@ export default function ChatScreen({ route, navigation }) {
 
         <ChatInput
           user={user}
-          inputMessage={inputMessage}
-          setInputMessage={setInputMessage}
           onSend={handleSend}
           disabled={!currentRoom && !currentPrivateChat}
           currentRoom={currentRoom}

@@ -35,6 +35,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Gatherup uses your camera for video calls and capturing media.",
+          "microphonePermission": "Gatherup uses your microphone for voice messages and video calls."
+        }
+      ],
       "expo-video",
       [
         "expo-audio",
@@ -57,12 +64,14 @@
           "android": {
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "-dontwarn expo.modules.kotlin.**\n-keep class expo.modules.kotlin.** { *; }",
+            "extraProguardRules": "-dontwarn expo.modules.kotlin.**\n-keep class expo.modules.kotlin.** { *; }\n\n-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**\n\n-keep class io.socket.** { *; }\n-dontwarn io.socket.**\n-keep class okhttp3.** { *; }\n-dontwarn okhttp3.**\n-keep class okio.** { *; }\n-dontwarn okio.**",
             "enableMinifyInReleaseBuilds": true
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "./plugins/withAnimatedWebpSupport.js",
+      "expo-font"
     ],
     "extra": {
       "eas": {

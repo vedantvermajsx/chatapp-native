@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, Text, TouchableOpacity, Pressable, ToastAndroid } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +22,7 @@ function handleLongPressCopy(text) {
   ToastAndroid.show('Copied to clipboard', ToastAndroid.SHORT);
 }
 
-export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagged, topRadius, bottomRadius, onImagePress, uploadProgress, onReplyPress }) {
+export const MessageBubble = memo(function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagged, topRadius, bottomRadius, onImagePress, uploadProgress, onReplyPress }) {
   const { theme } = useTheme();
 
   const bubbleBg = isOwn ? (msg.isPending ? `${theme.myMessageBubble}CC` : theme.myMessageBubble) : theme.otherMessageBubble;
@@ -37,7 +38,7 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
   const showSenderName = showUsername && !isPrivateChat && !isOwn;
   const replyTo = msg.replyTo;
   const replyMediaLabel = replyTo?.media
-    ? { image: '📷 Photo', video: '🎥 Video', audio: '🎤 Voice message', sticker: 'Sticker', gif: 'GIF' }[replyTo.media.type] || 'Attachment'
+    ? { image: 'Photo', video: 'Video', audio: 'Voice message', sticker: 'Sticker', gif: 'GIF' }[replyTo.media.type] || 'Attachment'
     : null;
 
   return (
@@ -133,7 +134,7 @@ export function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagge
       </View>
     </View>
   );
-}
+});
 
 function StickerBubble({ msg }) {
   const remoteUrl = toDisplayUrl(msg.media.url);
