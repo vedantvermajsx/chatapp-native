@@ -1,21 +1,26 @@
 import { ToastAndroid, Alert, Platform } from 'react-native';
 
-/**
- * Show a toast (Android) or a lightweight alert fallback (iOS/web).
- */
-export function showToast(message, { long = false } = {}) {
+export function showToast(message, type = 'info', { long = false } = {}) {
   if (!message) return;
   if (Platform.OS === 'android') {
     ToastAndroid.show(message, long ? ToastAndroid.LONG : ToastAndroid.SHORT);
   } else {
-    Alert.alert('', message);
+    const title =
+      type === 'error' ? 'Error' :
+      type === 'success' ? 'Success' :
+      type === 'warning' ? 'Warning' : '';
+    Alert.alert(title, message);
   }
 }
 
+showToast.success = (msg, opts) => showToast(msg, 'success', opts);
+showToast.error = (msg, opts) => showToast(msg, 'error', { long: true, ...opts });
+showToast.info = (msg, opts) => showToast(msg, 'info', opts);
+showToast.warning = (msg, opts) => showToast(msg, 'warning', opts);
+
 /**
- * Inspect an error (typically an axios error from a service call) and
- * classify it so the user is told what actually went wrong instead of a
- * generic "something went wrong".
+ * Inspect an error (typically an axios error from a service call) and classify it.
+ * Returns { kind: 'network' | 'auth' | 'not_found' | 'timeout' | 'server' | 'client' | 'unknown', label: string, message: string }
  */
 export function classifyError(e) {
   if (!e) return { kind: 'unknown', label: 'Error', message: 'Something went wrong' };
@@ -45,13 +50,9 @@ export function classifyError(e) {
   return { kind: 'unknown', label: 'Error', message: serverMsg || e.message || 'Something went wrong' };
 }
 
-/**
- * Classify + surface an API error as a toast. Returns the classification
- * in case the caller wants to branch on it (e.g. force logout on auth).
- */
 export function showApiError(e, fallbackLabel = 'Action failed') {
   const { kind, label, message } = classifyError(e);
   const prefix = kind === 'client' || kind === 'unknown' ? fallbackLabel : label;
-  showToast(`${prefix}: ${message}`, { long: kind === 'network' || kind === 'server' || kind === 'timeout' });
+  showToast(`${prefix}: ${message}`, 'error', { long: kind === 'network' || kind === 'server' || kind === 'timeout' });
   return { kind, label, message };
 }

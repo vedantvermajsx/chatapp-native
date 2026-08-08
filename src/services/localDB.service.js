@@ -3,6 +3,7 @@ import { dbPrivateChats } from './localDB/privateChats.db.js';
 import { dbMessages } from './localDB/messages.db.js';
 import { dbPendingMessages } from './localDB/pendingMessages.db.js';
 import { dbUnreadCounts } from './localDB/unreadCounts.db.js';
+import { dbKeys } from './localDB/keys.db.js';
 import { clearAllData } from './localDB/core.js';
 
 export const dbService = {
@@ -11,5 +12,6 @@ export const dbService = {
   ...dbMessages,
   ...dbPendingMessages,
   ...dbUnreadCounts,
+  ...dbKeys,
   clearAllData,
 };

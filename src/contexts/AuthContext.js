@@ -3,17 +3,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { disconnectSocket } from '../hooks/useChatSocket';
 import authService from '../services/auth.service';
 import { dbService } from '../services/localDB.service';
+import keyManager from '../services/keyManager';
+import { generateRsaKeyPairPem } from '../utils/crypto';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     (async () => {
       const userStr = await AsyncStorage.getItem('user');
-      if (userStr) setUser(JSON.parse(userStr));
+      if (userStr) {
+        const storedUser = JSON.parse(userStr);
+        setUser(storedUser);
+        if (storedUser?._id) {
+          keyManager.loadSelfPrivateKey(storedUser._id).catch(() => {});
+        }
+      }
       setLoading(false);
     })();
   }, []);
@@ -22,6 +29,9 @@ export const AuthProvider = ({ children }) => {
     await AsyncStorage.setItem('token', res.token);
     await AsyncStorage.setItem('user', JSON.stringify(res.user));
     setUser(res.user);
+    if (res.privateKey && res.user?._id) {
+      await keyManager.setSelfPrivateKey(res.user._id, res.privateKey);
+    }
   };
 
   const login = async (username, password) => {
@@ -46,8 +56,12 @@ export const AuthProvider = ({ children }) => {
 
   const guestLogin = async (username, gender) => {
     try {
-      const res = await authService.guestLogin({ username, gender });
+      const { publicKeyPem, privateKeyPem } = await generateRsaKeyPairPem();
+      const res = await authService.guestLogin({ username, gender, publicKey: publicKeyPem });
       await persist(res);
+      if (res.user?._id && privateKeyPem) {
+        await keyManager.setSelfPrivateKey(res.user._id, privateKeyPem);
+      }
       return { success: true };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Guest login failed' };
@@ -57,17 +71,32 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     disconnectSocket();
     await AsyncStorage.multiRemove(['token', 'user']);
-    await dbService.clearAllData();
     setUser(null);
+    try {
+      await keyManager.clear();
+    } catch (err) {
+      console.error('Error clearing keys on logout:', err);
+    }
+    try {
+      await dbService.clearAllData();
+    } catch (err) {
+      console.error('Error clearing local DB on logout:', err);
+    }
   };
 
   const updateUser = async (userData) => {
-    await AsyncStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+    const merged = { ...(user || {}), ...userData };
+    if (user?.publicKey && !userData?.publicKey) {
+      merged.publicKey = user.publicKey;
+    }
+    await AsyncStorage.setItem('user', JSON.stringify(merged));
+    setUser(merged);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, guestLogin, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, guestLogin, logout, updateUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

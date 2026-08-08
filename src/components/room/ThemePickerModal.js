@@ -1,12 +1,41 @@
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { styles } from './styles';
 
 export default function ThemePickerModal({ visible, onClose }) {
-  const { theme, THEMES, setTheme } = useTheme();
+  const { user } = useAuth();
+  const { theme, THEMES, setTheme, chatBackgroundUri, setChatBackgroundImage, clearChatBackgroundImage } = useTheme();
   const accent = theme.primary || theme.myMessageBubble || '#008080';
   const borderColor = theme.isLight ? '#ffffffff' : '#374151';
+  const isGuest = user?.role === 'guest';
+  const [pickingBackground, setPickingBackground] = useState(false);
+
+  const handlePickBackground = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permission needed', 'Please allow photo library access to set a chat background.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets?.length) return;
+
+      setPickingBackground(true);
+      setChatBackgroundImage(result.assets[0].uri);
+    } catch (e) {
+      Alert.alert('Failed', e?.message || 'Could not set chat background');
+    } finally {
+      setPickingBackground(false);
+    }
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -86,6 +115,51 @@ export default function ThemePickerModal({ visible, onClose }) {
                 );
               })}
             </View>
+
+            {/* Chat background — a local, per-device preference for registered users only */}
+            {!isGuest && (
+              <View style={[styles.bgSection, { borderTopColor: borderColor }]}>
+                <Text style={[styles.bgSectionTitle, { color: theme.otherMessageText }]}>Chat background</Text>
+                <Text style={[styles.bgSectionSub, { color: theme.otherUsernameColor }]}>
+                  Only visible to you, in the chat screen
+                </Text>
+                <View style={styles.bgRow}>
+                  <View style={[styles.bgPreview, styles.bgPreviewEmpty, { borderColor }]}>
+                    {pickingBackground ? (
+                      <ActivityIndicator size="small" color={accent} />
+                    ) : chatBackgroundUri ? (
+                      <Image source={{ uri: chatBackgroundUri }} style={{ width: '100%', height: '100%', borderRadius: 11 }} />
+                    ) : (
+                      <Ionicons name="image-outline" size={20} color={theme.otherUsernameColor} />
+                    )}
+                  </View>
+                  <View style={styles.bgActions}>
+                    <TouchableOpacity
+                      style={[styles.bgBtn, { borderColor: accent }]}
+                      onPress={handlePickBackground}
+                      disabled={pickingBackground}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="image" size={14} color={accent} />
+                      <Text style={[styles.bgBtnText, { color: accent }]}>
+                        {chatBackgroundUri ? 'Change' : 'Choose photo'}
+                      </Text>
+                    </TouchableOpacity>
+                    {chatBackgroundUri && (
+                      <TouchableOpacity
+                        style={[styles.bgBtn, { borderColor: '#ef4444' }]}
+                        onPress={clearChatBackgroundImage}
+                        disabled={pickingBackground}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                        <Text style={[styles.bgBtnText, { color: '#ef4444' }]}>Remove</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )}
           </ScrollView>
         </View>
       </View>

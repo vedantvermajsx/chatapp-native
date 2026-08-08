@@ -5,6 +5,7 @@ import { useState, useRef, useCallback } from 'react';
 //   RTCSessionDescription,
 //   mediaDevices,
 // } from 'react-native-webrtc';
+import InCallManager from 'react-native-incall-manager';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -33,12 +34,14 @@ export const useWebRTC = (socket) => {
   const [remoteStream, setRemoteStream] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [connectionState, setConnectionState] = useState('new');
 
   const peerConnection = useRef(null);
   const activeCallTargetId = useRef(null);
   const iceCandidateBuffer = useRef([]);
   const localStreamRef = useRef(null);
+  const facingModeRef = useRef('user');
 
   const socketRef = useRef(socket);
   socketRef.current = socket;
@@ -68,6 +71,12 @@ export const useWebRTC = (socket) => {
     setConnectionState('new');
     setIsMuted(false);
     setIsVideoOff(false);
+    facingModeRef.current = 'user';
+    try {
+      InCallManager.stop();
+    } catch (e) {
+      console.warn('[InCallManager] stop failed:', e);
+    }
   }, []);
 
   const initLocalStream = useCallback(async (isVideo = false) => {
@@ -84,6 +93,15 @@ export const useWebRTC = (socket) => {
         audio: true,
       });
       setLocalStreamSynced(stream);
+
+      try {
+        InCallManager.start({ media: isVideo ? 'video' : 'audio' });
+        InCallManager.setForceSpeakerphoneOn(isVideo);
+        setIsSpeakerOn(isVideo);
+      } catch (e) {
+        console.warn('[InCallManager] start failed:', e);
+      }
+
       return stream;
     } catch (err) {
       if (isVideo) {
@@ -239,6 +257,28 @@ export const useWebRTC = (socket) => {
     }
   }, []);
 
+  const toggleSpeaker = useCallback(() => {
+    setIsSpeakerOn((prev) => {
+      const next = !prev;
+      try {
+        InCallManager.setForceSpeakerphoneOn(next);
+      } catch (e) {
+        console.warn('[InCallManager] setForceSpeakerphoneOn failed:', e);
+      }
+      return next;
+    });
+  }, []);
+
+  const switchCamera = useCallback(() => {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    const videoTrack = stream.getVideoTracks()[0];
+    if (videoTrack && typeof videoTrack._switchCamera === 'function') {
+      videoTrack._switchCamera();
+      facingModeRef.current = facingModeRef.current === 'user' ? 'environment' : 'user';
+    }
+  }, []);
+
   return {
     localStream,
     localStreamRef,
@@ -246,6 +286,7 @@ export const useWebRTC = (socket) => {
     connectionState,
     isMuted,
     isVideoOff,
+    isSpeakerOn,
     initLocalStream,
     createOffer,
     handleOffer,
@@ -253,6 +294,8 @@ export const useWebRTC = (socket) => {
     handleIceCandidate,
     toggleMute,
     toggleVideo,
+    toggleSpeaker,
+    switchCamera,
     cleanup,
   };
 };

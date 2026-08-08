@@ -20,8 +20,16 @@ export default function LoginScreen({ navigation }) {
     setLoading(false);
     if (!res.success) {
       setError(res.message || 'Login failed');
+      
+      setTimeout(()=>{
+        setError('');
+      },3000);
+
     }
+
   };
+
+
 
   const accent = '#008080';
 

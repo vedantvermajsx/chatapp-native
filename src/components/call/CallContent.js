@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 //import { RTCView } from 'react-native-webrtc';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
@@ -18,6 +19,35 @@ export default function CallContent({
 }) {
   const showRemoteVideo = isVideo && remoteStream && !isConnecting;
 
+  const pulse = useRef(new Animated.Value(0)).current;
+  const ring = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isMinimized) return;
+    const glowLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    glowLoop.start();
+    return () => glowLoop.stop();
+  }, [isMinimized, pulse]);
+
+  useEffect(() => {
+    if (isMinimized || !isConnecting) return;
+    const ringLoop = Animated.loop(
+      Animated.timing(ring, { toValue: 1, duration: 1600, easing: Easing.out(Easing.ease), useNativeDriver: true })
+    );
+    ringLoop.start();
+    return () => ringLoop.stop();
+  }, [isMinimized, isConnecting, ring]);
+
+  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.08] });
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
+  const ringScale = ring.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] });
+  const ringOpacity = ring.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] });
+
   return (
     <View style={styles.contentWrap}>
       {showRemoteVideo && (
@@ -26,7 +56,12 @@ export default function CallContent({
 
       {!showRemoteVideo && (
         <View style={isMinimized ? styles.centerFillDark : styles.centerColumn}>
-          {!isMinimized && <View style={styles.glow} />}
+          {!isMinimized && (
+            <Animated.View style={[styles.glow, { transform: [{ scale: glowScale }], opacity: glowOpacity }]} />
+          )}
+          {!isMinimized && isConnecting && (
+            <Animated.View style={[styles.connectingRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]} />
+          )}
           <Avatar
             url={target?.avatar || FALLBACK_AVATAR}
             name={target?.username}

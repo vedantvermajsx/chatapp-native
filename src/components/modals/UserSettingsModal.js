@@ -67,10 +67,10 @@ export default function UserSettingsModal({ visible, user, onClose, onUpdated })
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.85,
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.85,
       });
       if (result.canceled || !result.assets?.length) return;
 

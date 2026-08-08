@@ -11,6 +11,7 @@ export const STORES = {
   pendingMessages: 'pendingMessages',
   pendingFiles: 'pendingFiles',
   unreadCounts: 'unreadCounts',
+  keys: 'keys',
 };
 
 const key = (...parts) => DB_PREFIX + parts.join(':');

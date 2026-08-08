@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.rnapp.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Gatherup uses your camera for video calls and capturing media.",
-        "NSMicrophoneUsageDescription": "Gatherup uses your microphone for voice messages and video calls."
+        "NSMicrophoneUsageDescription": "Gatherup uses your microphone for voice messages and video calls.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -35,13 +36,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      [
-        "@config-plugins/react-native-webrtc",
-        {
-          "cameraPermission": "Gatherup uses your camera for video calls and capturing media.",
-          "microphonePermission": "Gatherup uses your microphone for voice messages and video calls."
-        }
-      ],
       "expo-video",
       [
         "expo-audio",
@@ -75,9 +69,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "1ef0bd87-e09c-4cf0-8cff-859b8e824513"
+        "projectId": "5f47506f-7fe6-4e2a-b1e5-dd1660eb50ac"
       }
     },
-    "owner": "vedantvermajsxs-team"
+    "owner": "vedantvermajsxxs-team"
   }
 }

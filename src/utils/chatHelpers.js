@@ -18,19 +18,12 @@ export async function _refreshLastReadStatus(otherUserId, myId, setMessages) {
     if (!lastRead) return;
     setMessages((prev) => applyLastRead(prev, lastRead));
   } catch (e) {
-    // Non-critical background sync (read receipts) — safe to skip silently.
   }
 }
 
 const CATCH_UP_PAGE_SIZE = 20;
 
-/**
- * Pages forward through new room messages 20 at a time, invoking onBatch
- * after every page so the caller can render progressively and scroll down
- * as messages come in, instead of waiting for the whole backlog.
- * Returns the raw merged messages (whatever was fetched before any error).
- */
-export async function _fetchNewRoomMessages(roomId, cacheKey, existingRaw, myId, setMessages, { onBatch, onError } = {}) {
+export async function _fetchNewRoomMessages(roomId, cacheKey, existingRaw, myId, setMessages, { onBatch, onError } = {}, roomPrivateKey = null) {
   let merged = existingRaw;
   let latestTimestamp = merged[merged.length - 1]?.timestamp;
   if (!latestTimestamp) return merged;
@@ -38,7 +31,7 @@ export async function _fetchNewRoomMessages(roomId, cacheKey, existingRaw, myId,
   let hasMore = true;
   try {
     while (hasMore) {
-      const res = await messageService.getRoomMessages(roomId, CATCH_UP_PAGE_SIZE, null, latestTimestamp);
+      const res = await messageService.getRoomMessages(roomId, CATCH_UP_PAGE_SIZE, null, latestTimestamp, roomPrivateKey);
       hasMore = res.hasMore || false;
       if (!res.messages?.length) break;
 
@@ -63,7 +56,7 @@ export async function _fetchNewRoomMessages(roomId, cacheKey, existingRaw, myId,
 }
 
 /**
- * Same as above but for private chats: pages forward, applies read-state,
+ * for private chats: pages forward, applies read-state,
  * and reports each batch so the UI can update incrementally.
  */
 export async function _fetchNewPrivateMessages(otherUserId, cacheKey, existingRaw, myId, setMessages, emitMarkReadRef, { onBatch, onError } = {}) {
@@ -129,6 +122,8 @@ export function normalizeIncomingRoomMessage(m, myId) {
     replyTo: m.replyTo || null,
     taggedUser: m.taggedUser || null,
     isPending: false,
+    iv: m.iv || undefined,
+    wrappedKey: m.wrappedKey || undefined,
   };
 }
 
@@ -150,6 +145,9 @@ export function normalizeIncomingPrivateMessage(m, myId) {
     replyTo: m.replyTo || null,
     taggedUser: m.taggedUser || null,
     isPending: false,
+    iv: m.iv || undefined,
+    senderKeyWrapped: m.senderKeyWrapped || undefined,
+    receiverKeyWrapped: m.receiverKeyWrapped || undefined,
   };
 }
 
@@ -168,9 +166,7 @@ export function reconcileIncoming(prev, incoming) {
 }
 
 /**
- * Final safety net: collapse any entries sharing the same id/uuid, keeping
- * the last occurrence (most complete/most recent version of that message).
- * Cheap enough to run on every render since chat lists are bounded.
+ * collapse any entries sharing the same id/uuid, keeping
  */
 export function dedupeMessages(list) {
   const seen = new Set();

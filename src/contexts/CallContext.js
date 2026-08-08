@@ -277,8 +277,11 @@ export const CallProvider = ({ children, socket }) => {
         remoteStream: rtc.remoteStream,
         isMuted: rtc.isMuted,
         isVideoOff: rtc.isVideoOff,
+        isSpeakerOn: rtc.isSpeakerOn,
         toggleMute: rtc.toggleMute,
         toggleVideo: rtc.toggleVideo,
+        toggleSpeaker: rtc.toggleSpeaker,
+        switchCamera: rtc.switchCamera,
         setCallError,
         callConnectedTime,
       }}

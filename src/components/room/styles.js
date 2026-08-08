@@ -65,4 +65,15 @@ export const styles = StyleSheet.create({
   bubbleMine: { borderTopRightRadius: 2, alignSelf: 'flex-end' },
   themeName: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
   themeSelectedBadge: { position: 'absolute', top: 6, right: 6, width: 18, height: 18, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+
+  // ── ThemePickerModal: chat background (registered users only)
+  bgSection: { marginTop: 16, paddingTop: 16, borderTopWidth: 1 },
+  bgSectionTitle: { fontSize: 12.5, fontWeight: '700', marginBottom: 3 },
+  bgSectionSub: { fontSize: 11, marginBottom: 12 },
+  bgRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bgPreview: { width: 52, height: 52, borderRadius: 12, borderWidth: 1 },
+  bgPreviewEmpty: { alignItems: 'center', justifyContent: 'center' },
+  bgActions: { flex: 1, flexDirection: 'row', gap: 8 },
+  bgBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
+  bgBtnText: { fontSize: 12.5, fontWeight: '700' },
 });

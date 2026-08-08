@@ -1,13 +1,15 @@
 import { memo } from 'react';
-import { View, Text, TouchableOpacity, Pressable, ToastAndroid } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import Avatar from '../common/Avatar';
+import { LongPressFeedback } from '../common/LongPressFeedback';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatMessageTime, formatSeenAt } from '../../utils/dateUtils';
 import { toDisplayUrl } from '../../utils/imageUrl';
 import { useCachedMediaUri } from '../../hooks/useCachedMediaUri';
+import { showToast } from '../../utils/toast';
 import { TextContent } from './TextContent';
 import { VideoContent } from './VideoContent';
 import { AudioContent } from './AudioContent';
@@ -19,7 +21,9 @@ function handleLongPressCopy(text) {
 
   Clipboard.setStringAsync(text);
 
-  ToastAndroid.show('Copied to clipboard', ToastAndroid.SHORT);
+  // showToast falls back to a lightweight Alert on iOS/web, unlike
+  // ToastAndroid which only exists on Android.
+  showToast('Copied to clipboard');
 }
 
 export const MessageBubble = memo(function MessageBubble({ msg, isOwn, isPrivateChat, showUsername, isTagged, topRadius, bottomRadius, onImagePress, uploadProgress, onReplyPress }) {
@@ -49,8 +53,9 @@ export const MessageBubble = memo(function MessageBubble({ msg, isOwn, isPrivate
         {isSticker ? (
           <StickerBubble msg={msg} />
         ) : (
-          <Pressable
+          <LongPressFeedback
             onLongPress={() => handleLongPressCopy(msg.text)}
+            disabled={!msg.text}
             delayLongPress={350}
             style={[
               styles.bubble,
@@ -120,7 +125,7 @@ export const MessageBubble = memo(function MessageBubble({ msg, isOwn, isPrivate
                 <TextContent text={msg.text} textColor={textColor} bubbleBg={bubbleBg} />
               </View>
             )}
-          </Pressable>
+          </LongPressFeedback>
         )}
 
         <View style={styles.metaRow}>

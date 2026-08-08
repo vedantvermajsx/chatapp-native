@@ -13,6 +13,8 @@ import roomService from '../services/room.service';
 import { applyLastRead } from '../utils/applyLastRead';
 import { showApiError } from '../utils/toast';
 import { dbService } from '../services/localDB.service';
+import keyManager from '../services/keyManager';
+import { decryptForRoom, decryptPrivateMessage } from '../utils/crypto';
 import { 
   _refreshLastReadStatus, 
   _fetchNewRoomMessages, 
@@ -26,6 +28,7 @@ import {
 import ChatHeader from '../components/chat/ChatHeader';
 import MessageBubble, { SystemMessage, TypingIndicator, SwipeToReply } from '../components/message';
 import ChatInput from '../components/chat/ChatInput';
+import { ChatAreaBackground } from '../components/chat/ChatAreaBackground';
 import MembersPanel from '../components/chat/MembersPanel';
 import GroupSettingsModal from '../components/modals/GroupSettingsModal';
 import ImageZoomModal from '../components/modals/ImageZoomModal';
@@ -34,7 +37,7 @@ import Spinner from '../components/common/Spinner';
 export default function ChatScreen({ route, navigation }) {
   const { room: initialRoom, privateChat: initialPrivateChat } = route.params || {};
   const { user } = useAuth();
-  const { theme } = useTheme();
+  const { theme, chatBackgroundUri } = useTheme();
   const { startCall } = useCall();
   const [currentRoom, setCurrentRoom] = useState(initialRoom || null);
   const [currentPrivateChat, setCurrentPrivateChat] = useState(initialPrivateChat || null);
@@ -70,6 +73,37 @@ export default function ChatScreen({ route, navigation }) {
   const otherUserId = currentPrivateChat?.id;
   const myId = user?._id || user?.id;
   const isRoomAdmin = !!currentRoom && (currentRoom.groupAdmin === myId);
+  const roomPrivateKey = currentRoom?.privateKey || null;
+  const roomPublicKey = currentRoom?.publicKey || null;
+
+  const decryptRoomMsg = useCallback(async (raw) => {
+    if (!raw.iv || !raw.wrappedKey || !roomPrivateKey) return raw;
+    try {
+      const text = await decryptForRoom(raw.text ?? raw.message ?? '', raw.iv, raw.wrappedKey, roomPrivateKey);
+      const { iv, wrappedKey, ...rest } = raw;
+      return { ...rest, text };
+    } catch (err) {
+      console.error('[ChatScreen] room decrypt error:', err.message);
+      return { ...raw, text: 'Unable to decrypt message' };
+    }
+  }, [roomPrivateKey]);
+
+  const decryptPrivateMsg = useCallback(async (raw) => {
+    if (!raw.iv) return raw;
+    const privateKeyPem = await keyManager.getSelfPrivateKey();
+    if (!privateKeyPem) return raw;
+    const isOwn = String(raw.senderId) === String(myId);
+    const wrappedKeyForMe = isOwn ? raw.senderKeyWrapped : raw.receiverKeyWrapped;
+    if (!wrappedKeyForMe) return raw;
+    try {
+      const text = await decryptPrivateMessage(raw.text ?? raw.content ?? '', raw.iv, wrappedKeyForMe, privateKeyPem);
+      const { iv, senderKeyWrapped, receiverKeyWrapped, ...rest } = raw;
+      return { ...rest, text };
+    } catch (err) {
+      console.error('[ChatScreen] private decrypt error:', err.message);
+      return { ...raw, text: 'Unable to decrypt message' };
+    }
+  }, [myId]);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -117,7 +151,8 @@ export default function ChatScreen({ route, navigation }) {
 
     const cached = await dbService.getMessages(cacheKey);
     if (cached?.messages?.length) {
-      setMessages(cached.messages.map((m) => normalizeIncomingRoomMessage(m, myId)));
+      const decryptedCached = await Promise.all(cached.messages.map(decryptRoomMsg));
+      setMessages(decryptedCached.map((m) => normalizeIncomingRoomMessage(m, myId)));
       setLoadingMessages(false);
       setHasMoreOlder(!!cached.hasMore);
 
@@ -128,7 +163,7 @@ export default function ChatScreen({ route, navigation }) {
         if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
         if (unreadCount > 0) {
           setLoadingNewMessages(true);
-          const merged = await _fetchNewRoomMessages(roomId, cacheKey, cached.messages, myId, setMessages);
+          const merged = await _fetchNewRoomMessages(roomId, cacheKey, cached.messages, myId, setMessages, undefined, roomPrivateKey);
           setLoadingNewMessages(false);
           const newLast = merged[merged.length - 1];
           if (newLast) emitMarkRoomReadRef.current({ roomId, messageId: newLast.id, timestamp: newLast.timestamp });
@@ -139,7 +174,7 @@ export default function ChatScreen({ route, navigation }) {
 
     setLoadingMessages(true);
     try {
-      const data = await messageService.getRoomMessages(roomId, 20);
+      const data = await messageService.getRoomMessages(roomId, 20, null, null, roomPrivateKey);
       const list = data.messages || data || [];
       const normalized = list.map((m) => normalizeIncomingRoomMessage(m, myId));
       setMessages(normalized);
@@ -154,7 +189,7 @@ export default function ChatScreen({ route, navigation }) {
     } finally {
       setLoadingMessages(false);
     }
-  }, [roomId, myId]);
+  }, [roomId, myId, roomPrivateKey, decryptRoomMsg]);
 
   const loadPrivateMessages = useCallback(async () => {
     if (!otherUserId) return;
@@ -163,7 +198,8 @@ export default function ChatScreen({ route, navigation }) {
 
     const cached = await dbService.getMessages(cacheKey);
     if (cached?.messages?.length) {
-      setMessages(cached.messages.map((m) => normalizeIncomingPrivateMessage(m, myId)));
+      const decryptedCached = await Promise.all(cached.messages.map(decryptPrivateMsg));
+      setMessages(decryptedCached.map((m) => normalizeIncomingPrivateMessage(m, myId)));
       setLoadingMessages(false);
       setHasMoreOlder(!!cached.hasMore);
       _refreshLastReadStatus(otherUserId, myId, setMessages);
@@ -207,7 +243,7 @@ export default function ChatScreen({ route, navigation }) {
     } finally {
       setLoadingMessages(false);
     }
-  }, [otherUserId, myId]);
+  }, [otherUserId, myId, decryptPrivateMsg]);
 
   const handleLoadNewMessages = useCallback(async () => {
     if (loadingNewMessages) return;
@@ -224,7 +260,7 @@ export default function ChatScreen({ route, navigation }) {
             setNewMessagesCount((prev) => Math.max(0, prev - addedCount));
             scrollToEnd();
           },
-        });
+        }, roomPrivateKey);
         const last = merged[merged.length - 1];
         if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
       } else if (otherUserId) {
@@ -255,7 +291,7 @@ export default function ChatScreen({ route, navigation }) {
     setLoadingOlder(true);
     try {
       if (roomId) {
-        const data = await messageService.getRoomMessages(roomId, 20, oldest.timestamp);
+        const data = await messageService.getRoomMessages(roomId, 20, oldest.timestamp, null, roomPrivateKey);
         const list = data.messages || data || [];
         const normalizedOlder = list.map((m) => normalizeIncomingRoomMessage(m, myId));
         setMessages((prev) => {
@@ -332,23 +368,25 @@ export default function ChatScreen({ route, navigation }) {
 
   // -- Socket --
   const onRoomMessage = useCallback(
-    (msg) => {
+    async (msg) => {
       if (String(msg.roomId) !== String(roomId)) return;
-      const incoming = normalizeIncomingRoomMessage(msg, myId);
+      const decrypted = await decryptRoomMsg(msg);
+      const incoming = normalizeIncomingRoomMessage(decrypted, myId);
       setMessages((prev) => reconcileIncoming(prev, incoming));
       dbService.addMessage(`room_${roomId}`, incoming);
       if (!incoming.isOwn && !incoming.isSystemMessage) {
         emitMarkRoomReadRef.current({ roomId, messageId: incoming.id, timestamp: incoming.timestamp });
       }
     },
-    [roomId, myId]
+    [roomId, myId, decryptRoomMsg]
   );
 
   const onPrivateMessage = useCallback(
-    (msg) => {
+    async (msg) => {
       const otherId = msg.senderId === myId ? msg.receiverId : msg.senderId;
       if (String(otherId) !== String(otherUserId)) return;
-      const incoming = normalizeIncomingPrivateMessage(msg, myId);
+      const decrypted = await decryptPrivateMsg(msg);
+      const incoming = normalizeIncomingPrivateMessage(decrypted, myId);
       setMessages((prev) => reconcileIncoming(prev, incoming));
       dbService.addMessage(`private_${otherId}`, incoming);
 
@@ -361,7 +399,7 @@ export default function ChatScreen({ route, navigation }) {
         });
       }
     },
-    [otherUserId, myId]
+    [otherUserId, myId, decryptPrivateMsg]
   );
   
   const onReadReceipt = useCallback(
@@ -543,7 +581,7 @@ export default function ChatScreen({ route, navigation }) {
 
       let response;
       if (roomId) {
-        response = await messageService.sendRoomMessage({ roomId, text, media: finalMedia, uuid, replyTo: replySnapshot, taggedUser: taggedUserId });
+        response = await messageService.sendRoomMessage({ roomId, text, media: finalMedia, uuid, roomPublicKey, replyTo: replySnapshot, taggedUser: taggedUserId });
       } else if (otherUserId) {
         response = await messageService.sendPrivateMessage({
           receiverId: otherUserId,
@@ -576,7 +614,7 @@ export default function ChatScreen({ route, navigation }) {
     const originalCacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
     try {
       let response;
-      if (roomId) response = await messageService.sendRoomMessage({ roomId, text: '', media: sticker, uuid, replyTo: replySnapshot, taggedUser: replySnapshot?.senderId });
+      if (roomId) response = await messageService.sendRoomMessage({ roomId, text: '', media: sticker, uuid, roomPublicKey, replyTo: replySnapshot, taggedUser: replySnapshot?.senderId });
       else if (otherUserId) {
         response = await messageService.sendPrivateMessage({
           receiverId: otherUserId,
@@ -701,6 +739,7 @@ export default function ChatScreen({ route, navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? topInset + headerHeight : 0}
       >
+        <ChatAreaBackground uri={chatBackgroundUri}>
         {loadingMessages && messages.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Spinner size="large" color={theme.primary || theme.myMessageBubble || '#008080'} />
@@ -771,6 +810,7 @@ export default function ChatScreen({ route, navigation }) {
             )}
           </View>
         )}
+        </ChatAreaBackground>
 
         <ChatInput
           user={user}

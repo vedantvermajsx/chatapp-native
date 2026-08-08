@@ -33,8 +33,11 @@ class RoomService {
     }
   }
 
-  async createRoom(groupName, groupDescription) {
-    const res = await api.post(`${this.basePath}/create`, { groupName, groupDescription });
+  async createRoom(groupName, groupDescription, publicKey, privateKey) {
+    const payload = { groupName, groupDescription };
+    if (publicKey) payload.publicKey = publicKey;
+    if (privateKey) payload.privateKey = privateKey;
+    const res = await api.post(`${this.basePath}/create`, payload);
     return res.data;
   }
 

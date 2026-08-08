@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -13,6 +13,7 @@ import { useChatSocket, getActiveChatKey } from '../hooks/useChatSocket';
 import Spinner from '../components/common/Spinner';
 import { dbService } from '../services/localDB.service';
 import { showApiError } from '../utils/toast';
+import { generateRsaKeyPairPem } from '../utils/crypto';
 
 import SidebarHeader from '../components/room/SidebarHeader';
 import RoomSearch from '../components/room/RoomSearch';
@@ -24,7 +25,7 @@ import SidebarFooter from '../components/room/SidebarFooter';
 import CreateRoomModal from '../components/room/CreateRoomModal';
 
 export default function RoomListScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user} = useAuth();
   const { theme } = useTheme();
   const [joinedRooms, setJoinedRooms] = useState([]);
   const [globalRooms, setGlobalRooms] = useState([]);
@@ -266,7 +267,13 @@ export default function RoomListScreen({ navigation }) {
     }
     setCreatingRoom(true);
     try {
-      const data = await roomService.createRoom(newRoomName.trim(), newRoomDesc.trim());
+      const { publicKeyPem, privateKeyPem } = await generateRsaKeyPairPem();
+      const data = await roomService.createRoom(
+        newRoomName.trim(),
+        newRoomDesc.trim(),
+        publicKeyPem,
+        privateKeyPem
+      );
       const newRoom = data.room;
       setShowCreateRoom(false);
       setNewRoomName('');
@@ -497,6 +504,7 @@ export default function RoomListScreen({ navigation }) {
             creatingRoom={creatingRoom}
             handleCreateRoom={handleCreateRoom}
           />
+
         </View>
       </SafeAreaView>
     </View>
