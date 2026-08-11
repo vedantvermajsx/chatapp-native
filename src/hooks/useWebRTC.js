@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
-// import {
-//   RTCPeerConnection,
-//   RTCIceCandidate,
-//   RTCSessionDescription,
-//   mediaDevices,
-// } from 'react-native-webrtc';
-import InCallManager from 'react-native-incall-manager';
+import { Platform, PermissionsAndroid } from 'react-native';
+import {
+  RTCPeerConnection,
+  RTCIceCandidate,
+  RTCSessionDescription,
+  mediaDevices,
+} from 'react-native-webrtc';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -29,6 +29,33 @@ const ICE_SERVERS = {
   ],
 };
 
+async function requestMediaPermissions(isVideo) {
+  if (Platform.OS !== 'android') return true;
+
+  const perms = [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+  if (isVideo) perms.push(PermissionsAndroid.PERMISSIONS.CAMERA);
+  
+  if (Platform.Version >= 31) {
+    perms.push(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
+  }
+
+  const results = await PermissionsAndroid.requestMultiple(perms);
+  
+  const criticalDenied = perms.filter(
+    (p) => 
+      p !== PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT && 
+      results[p] !== PermissionsAndroid.RESULTS.GRANTED
+  );
+  
+  if (criticalDenied.length) {
+    const err = new Error('Camera/microphone permission denied');
+    err.code = 'PERMISSION_DENIED';
+    err.denied = criticalDenied;
+    throw err;
+  }
+  return true;
+}
+
 export const useWebRTC = (socket) => {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
@@ -42,6 +69,7 @@ export const useWebRTC = (socket) => {
   const iceCandidateBuffer = useRef([]);
   const localStreamRef = useRef(null);
   const facingModeRef = useRef('user');
+  const isCallerRef = useRef(false);
 
   const socketRef = useRef(socket);
   socketRef.current = socket;
@@ -56,6 +84,7 @@ export const useWebRTC = (socket) => {
       peerConnection.current.onicecandidate = null;
       peerConnection.current.onconnectionstatechange = null;
       peerConnection.current.ontrack = null;
+      peerConnection.current.onnegotiationneeded = null;
       peerConnection.current.close();
       peerConnection.current = null;
     }
@@ -68,15 +97,11 @@ export const useWebRTC = (socket) => {
     setRemoteStream(null);
     activeCallTargetId.current = null;
     iceCandidateBuffer.current = [];
+    isCallerRef.current = false;
     setConnectionState('new');
     setIsMuted(false);
     setIsVideoOff(false);
     facingModeRef.current = 'user';
-    try {
-      InCallManager.stop();
-    } catch (e) {
-      console.warn('[InCallManager] stop failed:', e);
-    }
   }, []);
 
   const initLocalStream = useCallback(async (isVideo = false) => {
@@ -87,20 +112,15 @@ export const useWebRTC = (socket) => {
       setLocalStream(null);
     }
 
+    await requestMediaPermissions(isVideo);
+
     try {
       const stream = await mediaDevices.getUserMedia({
         video: isVideo ? { facingMode: 'user' } : false,
         audio: true,
       });
       setLocalStreamSynced(stream);
-
-      try {
-        InCallManager.start({ media: isVideo ? 'video' : 'audio' });
-        InCallManager.setForceSpeakerphoneOn(isVideo);
-        setIsSpeakerOn(isVideo);
-      } catch (e) {
-        console.warn('[InCallManager] start failed:', e);
-      }
+      setIsSpeakerOn(isVideo);
 
       return stream;
     } catch (err) {
@@ -145,8 +165,24 @@ export const useWebRTC = (socket) => {
     pc.onconnectionstatechange = () => {
       setConnectionState(pc.connectionState);
       if (pc.connectionState === 'failed') {
-        console.warn('[WebRTC] Connection failed, attempting ICE restart...');
         pc.restartIce?.();
+      }
+    };
+
+    pc.onnegotiationneeded = async () => {
+      if (!isCallerRef.current || pc.signalingState !== 'stable') return;
+      try {
+        const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true, iceRestart: true });
+        await pc.setLocalDescription(offer);
+        if (socketRef.current) {
+          socketRef.current.emit('webrtcSignal', {
+            targetId,
+            type: 'renegotiate-offer',
+            data: offer,
+          });
+        }
+      } catch (e) {
+        console.warn('[WebRTC] onnegotiationneeded reoffer failed:', e);
       }
     };
 
@@ -172,6 +208,7 @@ export const useWebRTC = (socket) => {
   }, []);
 
   const createOffer = useCallback(async (targetId, callerData, currentStream = null) => {
+    isCallerRef.current = true;
     const pc = createPeerConnection(targetId);
     const streamToUse = currentStream || localStreamRef.current;
     if (streamToUse) addTracksToConnection(streamToUse);
@@ -185,6 +222,7 @@ export const useWebRTC = (socket) => {
   }, [createPeerConnection, addTracksToConnection]);
 
   const handleOffer = useCallback(async (offer, senderId, currentStream = null) => {
+    isCallerRef.current = false;
     const pc = createPeerConnection(senderId);
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
 
@@ -258,15 +296,7 @@ export const useWebRTC = (socket) => {
   }, []);
 
   const toggleSpeaker = useCallback(() => {
-    setIsSpeakerOn((prev) => {
-      const next = !prev;
-      try {
-        InCallManager.setForceSpeakerphoneOn(next);
-      } catch (e) {
-        console.warn('[InCallManager] setForceSpeakerphoneOn failed:', e);
-      }
-      return next;
-    });
+    setIsSpeakerOn((prev) => !prev);
   }, []);
 
   const switchCamera = useCallback(() => {

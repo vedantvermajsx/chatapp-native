@@ -96,6 +96,16 @@ export const CallProvider = ({ children, socket }) => {
           break;
         }
 
+        case 'renegotiate-offer': {
+          if (!activeCallSnap || String(activeCallSnap.targetId) !== String(senderId)) break;
+          try {
+            await rtc.handleOffer(data, senderId, rtc.localStreamRef.current);
+          } catch (e) {
+            console.warn('[Call] renegotiate-offer failed:', e);
+          }
+          break;
+        }
+
         case 'reject-call': {
           if (activeCallSnap && String(activeCallSnap.targetId) === String(senderId)) {
             if (activeCallSnap.status === 'calling' && activeCallSnap.targetData && callStartTimeRef.current) {

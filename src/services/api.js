@@ -1,6 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { toJson } from '../utils/toJson';
+import { emitSessionExpired } from '../events/sessionEvents';
+import { dbService } from './localDB.service';
 
 export const BASE_URL = process.env.EXPO_PUBLIC_LOAD_BALENCER_URL_ || 'http://192.168.1.100:5000/api';
 
@@ -11,15 +13,12 @@ const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// --- Request interceptor helpers -------------------------------------------------
+// --- Request interceptor helpers -----
 
 function isFormData(data) {
   return typeof FormData !== 'undefined' && data instanceof FormData;
 }
 
-// Strips null/undefined fields from JSON request bodies so callers don't have
-// to hand-roll conditional spreads to keep optional fields out of payloads.
-// FormData bodies (file uploads) are left untouched.
 function cleanRequestData(config) {
   if (config.data && !isFormData(config.data)) {
     config.data = toJson(config.data);
@@ -49,7 +48,7 @@ function logRequest(config) {
   return config;
 }
 
-// --- Response interceptor helpers ------------------------------------------------
+// --- Response interceptor helpers 
 
 function logResponse(response) {
   console.log(`[API RESPONSE] ${response.status} ${response.config.url}`, response.data);
@@ -68,13 +67,14 @@ function logError(error) {
 }
 
 async function handleUnauthorized(error) {
-  if (error.response?.status === 498) {
-    await AsyncStorage.multiRemove(['token', 'user']);
+  if (error.response?.status === 498 || error.response?.status === 401) {
+    AsyncStorage.removeItem('token').catch(console.error);
+    AsyncStorage.removeItem('user').catch(console.error);
+    dbService.clearAllData().catch(console.error);
+    emitSessionExpired();
   }
   return error;
 }
-
-// --- Wiring ------------------------------------------------------------------------
 
 apiClient.interceptors.request.use(async (config) => {
   config = cleanRequestData(config);

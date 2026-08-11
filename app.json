@@ -12,8 +12,7 @@
       "bundleIdentifier": "com.rnapp.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Gatherup uses your camera for video calls and capturing media.",
-        "NSMicrophoneUsageDescription": "Gatherup uses your microphone for voice messages and video calls.",
-        "ITSAppUsesNonExemptEncryption": false
+        "NSMicrophoneUsageDescription": "Gatherup uses your microphone for voice messages and video calls."
       }
     },
     "android": {
@@ -21,9 +20,7 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -38,12 +35,6 @@
     "plugins": [
       "expo-video",
       [
-        "expo-audio",
-        {
-          "microphonePermission": "Allow Gatherup to access your microphone for voice messages and calls."
-        }
-      ],
-      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
@@ -56,22 +47,19 @@
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "-dontwarn expo.modules.kotlin.**\n-keep class expo.modules.kotlin.** { *; }\n\n-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**\n\n-keep class io.socket.** { *; }\n-dontwarn io.socket.**\n-keep class okhttp3.** { *; }\n-dontwarn okhttp3.**\n-keep class okio.** { *; }\n-dontwarn okio.**",
-            "enableMinifyInReleaseBuilds": true
+            "enableProguardInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false,
+            "enableMinifyInReleaseBuilds": false
           }
         }
       ],
-      "expo-asset",
-      "./plugins/withAnimatedWebpSupport.js",
-      "expo-font"
+      "expo-asset"
     ],
     "extra": {
       "eas": {
-        "projectId": "5f47506f-7fe6-4e2a-b1e5-dd1660eb50ac"
+        "projectId": "f1008fd4-2689-4f4a-b216-f1a242661bd9"
       }
     },
-    "owner": "vedantvermajsxxs-team"
+    "owner": "gatherup-nows-team"
   }
 }

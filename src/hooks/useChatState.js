@@ -17,7 +17,7 @@ import roomService from '../services/room.service';
 import userService from '../services/user.service';
 import { showToast } from '../utils/toast';
 import { dbService } from '../services/localDB.service';
-import { setOfflineHandlerDependencies, setupOfflineHandler } from '../services/offlineMessageHandler.js';
+import { setOfflineHandlerDependencies, setupOfflineHandler, addPendingMessageSentListener } from '../services/offlineMessageHandler.js';
 
 export const useChatState = (user) => {
   const [messages, setMessages] = useState([]);
@@ -69,8 +69,7 @@ export const useChatState = (user) => {
   const CACHE_TTL = 30000;
 
   useEffect(() => {
-    const handlePendingSent = (e) => {
-      const { cacheKey, tempId, message } = e.detail || {};
+    const handlePendingSent = ({ cacheKey, tempId, message } = {}) => {
       if (!cacheKey || !tempId || !message) return;
 
       const reconcile = (list) => {
@@ -92,8 +91,8 @@ export const useChatState = (user) => {
       }
     };
 
-    window.addEventListener('pending-message-sent', handlePendingSent);
-    return () => window.removeEventListener('pending-message-sent', handlePendingSent);
+    const unsubscribe = addPendingMessageSentListener(handlePendingSent);
+    return () => unsubscribe && unsubscribe();
   }, [currentRoom?._id, currentPrivateChat?.id]);
 
   useEffect(() => {
@@ -229,7 +228,8 @@ export const useChatState = (user) => {
             setMessages,
             setHasMoreNewerMessages,
             messageCache,
-            setUnreadCounts
+            setUnreadCounts,
+            currentRoom.privateKey ?? null
           );
         }
       } finally {
@@ -280,7 +280,8 @@ export const useChatState = (user) => {
             setMessages,
             setHasMoreNewerMessages,
             messageCache,
-            setUnreadCounts
+            setUnreadCounts,
+            currentRoom.privateKey ?? null
           );
         }
       } finally {
@@ -349,7 +350,8 @@ export const useChatState = (user) => {
       CACHE_TTL,
       unreadCounts[`room_${roomId}`] || 0,
       setUnreadCounts,
-      roomObject?.privateKey ?? null
+      roomObject?.privateKey ?? null,
+      (val) => { if (currentSwitchId.current === switchId) setLoadingNewerMessages(val); }
     );
     setShowSidebar(false);
   }, [joinedRooms, user, CACHE_TTL, setRoomMembers, currentRoom, clearUnread, setJoinedRooms, loadJoinedRooms, unreadCounts]);
@@ -371,7 +373,8 @@ export const useChatState = (user) => {
       messageCache,
       CACHE_TTL,
       unreadCounts[`private_${otherUser.id}`] || 0,
-      setUnreadCounts
+      setUnreadCounts,
+      (val) => { if (currentSwitchId.current === switchId) setLoadingNewerMessages(val); }
     );
     setShowSidebar(false);
   }, [user, CACHE_TTL, clearUnread, unreadCounts]);

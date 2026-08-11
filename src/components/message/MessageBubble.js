@@ -21,8 +21,6 @@ function handleLongPressCopy(text) {
 
   Clipboard.setStringAsync(text);
 
-  // showToast falls back to a lightweight Alert on iOS/web, unlike
-  // ToastAndroid which only exists on Android.
   showToast('Copied to clipboard');
 }
 

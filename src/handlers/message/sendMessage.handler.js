@@ -1,6 +1,14 @@
+import { v4 as uuidv4 } from 'uuid';
 import messageService from '../../services/message.service.js';
 import { updatePrivateChatOptimistically } from '../private/updatePrivateChatOptimistically.handler.js';
 import { dbService } from '../../services/localDB.service.js';
+
+function isOnlineSafe() {
+  if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
+    return navigator.onLine;
+  }
+  return true;
+}
 
 export const sendMessageHandler = async (
   e,
@@ -19,19 +27,20 @@ export const sendMessageHandler = async (
   taggedUserId,
   setTaggedUserId
 ) => {
-  e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
   const trimmedMessage = (inputMessage || '').trim();
   if (!trimmedMessage && !selectedFile) return;
 
-  const tempId = crypto.randomUUID();
+  const tempId = uuidv4();
   let pendingMedia = null;
-  let localPreviewUrl = null;
 
   if (selectedFile) {
-    localPreviewUrl = URL.createObjectURL(selectedFile);
+    const uri = selectedFile.uri || (typeof selectedFile === 'string' ? selectedFile : null);
+    const type = selectedFile.type || selectedFile.mimeType || '';
     pendingMedia = {
-      type: selectedFile.type.startsWith('image/gif') ? 'gif' : selectedFile.type.startsWith('video') ? 'video' : 'image',
-      url: localPreviewUrl,
+      type: type.startsWith('image/gif') ? 'gif' : type.startsWith('video') ? 'video' : 'image',
+      url: uri,
+      uri,
       isPending: true
     };
   }
@@ -110,7 +119,7 @@ export const sendMessageHandler = async (
         await dbService.addFile(tempId, selectedFile);
       }
 
-      if (!navigator.onLine) {
+      if (!isOnlineSafe()) {
         return;
       }
 
@@ -182,7 +191,6 @@ export const sendMessageHandler = async (
             );
         }
         
-        if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
         await dbService.addPendingMessage({ ...pendingMessageData, media: finalMediaToUse });
       }
 
@@ -282,7 +290,7 @@ export const sendStickerHandler = async (
 ) => {
   if (!sticker?.url) return;
 
-  const tempId = crypto.randomUUID();
+  const tempId = uuidv4();
 
   const stickerMedia = {
     type: 'sticker',

@@ -13,6 +13,7 @@ import roomService from '../services/room.service';
 import { applyLastRead } from '../utils/applyLastRead';
 import { showApiError } from '../utils/toast';
 import { dbService } from '../services/localDB.service';
+import { setOfflineHandlerDependencies, addPendingMessageSentListener } from '../services/offlineMessageHandler';
 import keyManager from '../services/keyManager';
 import { decryptForRoom, decryptPrivateMessage } from '../utils/crypto';
 import { 
@@ -77,31 +78,62 @@ export default function ChatScreen({ route, navigation }) {
   const roomPublicKey = currentRoom?.publicKey || null;
 
   const decryptRoomMsg = useCallback(async (raw) => {
-    if (!raw.iv || !raw.wrappedKey || !roomPrivateKey) return raw;
+    let replyTo = raw.replyTo;
+    if (replyTo?.iv && replyTo?.wrappedKey && roomPrivateKey) {
+      try {
+        const replyText = await decryptForRoom(replyTo.text ?? '', replyTo.iv, replyTo.wrappedKey, roomPrivateKey);
+        const { iv: _iv, wrappedKey: _wk, ...restReply } = replyTo;
+        replyTo = { ...restReply, text: replyText };
+      } catch (err) {
+        console.error('[ChatScreen] room replyTo decrypt error:', err.message);
+        const { iv: _iv, wrappedKey: _wk, ...restReply } = replyTo;
+        replyTo = { ...restReply, text: 'Unable to decrypt message' };
+      }
+    }
+    if (!raw.iv || !raw.wrappedKey || !roomPrivateKey) return { ...raw, replyTo };
     try {
       const text = await decryptForRoom(raw.text ?? raw.message ?? '', raw.iv, raw.wrappedKey, roomPrivateKey);
       const { iv, wrappedKey, ...rest } = raw;
-      return { ...rest, text };
+      return { ...rest, text, replyTo };
     } catch (err) {
       console.error('[ChatScreen] room decrypt error:', err.message);
-      return { ...raw, text: 'Unable to decrypt message' };
+      return { ...raw, text: 'Unable to decrypt message', replyTo };
     }
   }, [roomPrivateKey]);
 
   const decryptPrivateMsg = useCallback(async (raw) => {
-    if (!raw.iv) return raw;
     const privateKeyPem = await keyManager.getSelfPrivateKey();
-    if (!privateKeyPem) return raw;
+
+    let replyTo = raw.replyTo;
+    if (replyTo?.iv && privateKeyPem) {
+      const isReplyOwn = String(replyTo.senderId) === String(myId);
+      const replyWrappedKeyForMe = isReplyOwn ? replyTo.senderKeyWrapped : replyTo.receiverKeyWrapped;
+      const { iv: _iv, senderKeyWrapped: _skw, receiverKeyWrapped: _rkw, ...restReply } = replyTo;
+      if (replyWrappedKeyForMe) {
+        try {
+          const replyText = await decryptPrivateMessage(replyTo.text ?? '', replyTo.iv, replyWrappedKeyForMe, privateKeyPem);
+          replyTo = { ...restReply, text: replyText };
+        } catch (err) {
+          console.error('[ChatScreen] private replyTo decrypt error:', err.message);
+          replyTo = { ...restReply, text: 'Unable to decrypt message' };
+        }
+      } else {
+        replyTo = { ...restReply, text: 'Unable to decrypt message' };
+      }
+    }
+
+    if (!raw.iv) return { ...raw, replyTo };
+    if (!privateKeyPem) return { ...raw, replyTo };
     const isOwn = String(raw.senderId) === String(myId);
     const wrappedKeyForMe = isOwn ? raw.senderKeyWrapped : raw.receiverKeyWrapped;
-    if (!wrappedKeyForMe) return raw;
+    if (!wrappedKeyForMe) return { ...raw, replyTo };
     try {
       const text = await decryptPrivateMessage(raw.text ?? raw.content ?? '', raw.iv, wrappedKeyForMe, privateKeyPem);
       const { iv, senderKeyWrapped, receiverKeyWrapped, ...rest } = raw;
-      return { ...rest, text };
+      return { ...rest, text, replyTo };
     } catch (err) {
       console.error('[ChatScreen] private decrypt error:', err.message);
-      return { ...raw, text: 'Unable to decrypt message' };
+      return { ...raw, text: 'Unable to decrypt message', replyTo };
     }
   }, [myId]);
 
@@ -334,6 +366,39 @@ export default function ChatScreen({ route, navigation }) {
     if (roomId) loadRoomMessages();
     else if (otherUserId) loadPrivateMessages();
   }, [roomId, otherUserId, loadRoomMessages, loadPrivateMessages]);
+
+  // Keep the background offline-retry queue aware of which chat is open, so
+  // pending messages that finish sending while this screen is mounted are
+  // reflected live, and so it knows whether to report upload progress here.
+  useEffect(() => {
+    setOfflineHandlerDependencies({
+      currentRoom,
+      currentPrivateChat,
+      setMessages,
+      setUploadProgress: (id, progress) =>
+        setUploadProgresses((prev) => {
+          if (progress == null) {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          }
+          return { ...prev, [id]: progress };
+        }),
+    });
+  }, [currentRoom, currentPrivateChat]);
+
+  useEffect(() => {
+    const activeKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
+    const unsubscribe = addPendingMessageSentListener(({ cacheKey, tempId, message }) => {
+      if (!activeKey || activeKey !== cacheKey) return;
+      setMessages((prev) => {
+        const withoutTemp = prev.filter((m) => (m.id || m.uuid) !== tempId);
+        const alreadyHasFinal = withoutTemp.some((m) => m.id === message.id);
+        return alreadyHasFinal ? withoutTemp : [...withoutTemp, message];
+      });
+    });
+    return unsubscribe;
+  }, [roomId, otherUserId]);
 
   useEffect(() => {
     if (!roomId) return undefined;
@@ -596,6 +661,30 @@ export default function ChatScreen({ route, navigation }) {
       resolveOptimistic(uuid, response, finalMedia, originalCacheKey, replySnapshot, taggedUserId);
     } catch (e) {
       showApiError(e, 'Message not delivered (still pending)');
+      // Queue the message so it's retried automatically once we're back
+      // online or the app relaunches, instead of leaving it stuck forever.
+      try {
+        const pendingMessageData = {
+          id: uuid,
+          text,
+          media: localPreview,
+          mediaType: localPreview?.type || null,
+          mediaId: localMedia ? uuid : null,
+          timestamp: new Date().toISOString(),
+          username: user.username,
+          avatar: user.avatar || null,
+          gender: user.gender,
+          type: roomId ? 'room' : 'private',
+          roomId: roomId || undefined,
+          roomPublicKey: roomId ? roomPublicKey : undefined,
+          receiverId: otherUserId || undefined,
+          receiverModel: otherUserId ? (currentPrivateChat?.role === 'guest' ? 'Guest' : 'User') : undefined,
+        };
+        await dbService.addPendingMessage(pendingMessageData);
+        if (localMedia) await dbService.addFile(uuid, localMedia);
+      } catch (persistErr) {
+        console.error('Failed to queue message for retry:', persistErr);
+      }
     } finally {
       setUploadProgresses((prev) => {
         const next = { ...prev };
@@ -629,6 +718,26 @@ export default function ChatScreen({ route, navigation }) {
       resolveOptimistic(uuid, response, sticker, originalCacheKey, replySnapshot);
     } catch (e) {
       showApiError(e, 'Sticker not delivered (still pending)');
+      try {
+        await dbService.addPendingMessage({
+          id: uuid,
+          text: '',
+          media: sticker,
+          mediaType: null,
+          mediaId: null,
+          timestamp: new Date().toISOString(),
+          username: user.username,
+          avatar: user.avatar || null,
+          gender: user.gender,
+          type: roomId ? 'room' : 'private',
+          roomId: roomId || undefined,
+          roomPublicKey: roomId ? roomPublicKey : undefined,
+          receiverId: otherUserId || undefined,
+          receiverModel: otherUserId ? (currentPrivateChat?.role === 'guest' ? 'Guest' : 'User') : undefined,
+        });
+      } catch (persistErr) {
+        console.error('Failed to queue sticker for retry:', persistErr);
+      }
     }
   };
 

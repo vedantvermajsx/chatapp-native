@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
-//import { RTCView } from 'react-native-webrtc';
+import { RTCView } from 'react-native-webrtc';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
 import { styles } from './styles';

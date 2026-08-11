@@ -1,10 +1,19 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState } from 'react-native';
 import { dbService } from './localDB.service';
 import messageService from './message.service';
 import roomService from './room.service';
 import { showToast } from '../utils/toast';
 import { catchUpNewerMessagesHandler } from '../handlers/chat.handlers';
 
-let isOnline = navigator.onLine;
+function isOnlineSafe() {
+  if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
+    return navigator.onLine;
+  }
+  return true;
+}
+
+let isOnline = isOnlineSafe();
 let isSending = false;
 let dependencies = {
   messageCache: null,
@@ -15,12 +24,25 @@ let dependencies = {
   currentPrivateChat: null
 };
 
+const _pendingListeners = new Set();
+
+export function addPendingMessageSentListener(fn) {
+  if (typeof fn === 'function') _pendingListeners.add(fn);
+  return () => _pendingListeners.delete(fn);
+}
+
+function _emitPendingSent(payload) {
+  for (const fn of _pendingListeners) {
+    try { fn(payload); } catch (_) {}
+  }
+}
+
 export const setOfflineHandlerDependencies = (deps) => {
   dependencies = { ...dependencies, ...deps };
 };
 
 export const sendPendingMessages = async () => {
-  if (!isOnline || isSending) return;
+  if (!isOnlineSafe() || isSending) return;
   isSending = true;
 
   try {
@@ -52,6 +74,10 @@ export const sendPendingMessages = async () => {
             return (isCurrentRoom || isCurrentPrivate) ? dependencies.setMessages : () => {};
           };
 
+          const roomPk = type === 'room' && dependencies.currentRoom?._id === chatId
+            ? dependencies.currentRoom?.privateKey ?? null
+            : null;
+
           await catchUpNewerMessagesHandler(
             chatId,
             type,
@@ -59,7 +85,8 @@ export const sendPendingMessages = async () => {
             setMessagesForCache(),
             dependencies.setHasMoreNewerMessages,
             dependencies.messageCache,
-            dependencies.setUnreadCounts
+            dependencies.setUnreadCounts,
+            roomPk
           );
           caughtUpChats.add(cacheKey);
         }
@@ -70,12 +97,28 @@ export const sendPendingMessages = async () => {
         if (pendingMsg.mediaType && pendingMsg.mediaId) {
           const file = await dbService.getFile(pendingMsg.mediaId);
           if (file) {
-            const uploadResult = await messageService.uploadFile(file, 'data', true);
+            const isCurrentChat =
+              (pendingMsg.type === 'room' && dependencies.currentRoom?._id === pendingMsg.roomId) ||
+              (pendingMsg.type === 'private' && dependencies.currentPrivateChat?.id === pendingMsg.receiverId);
+
+            const updateProgress = dependencies.setUploadProgress
+              ? (progress) => {
+                  if (isCurrentChat) dependencies.setUploadProgress(tempId, progress);
+                }
+              : null;
+
+            // messageService.uploadFile(asset, folder, onProgress) — the third
+            // argument must be a function (or null), never a boolean; passing
+            // `true` here made it call `true(progress)` and throw, so every
+            // resumed upload silently failed and stayed pending forever.
+            const uploadResult = await messageService.uploadFile(file, 'data', updateProgress);
             finalMedia = {
               type: uploadResult.type,
               url: uploadResult.url,
               isPending: false
             };
+
+            updateProgress?.(null);
           }
         }
 
@@ -101,7 +144,11 @@ export const sendPendingMessages = async () => {
         }
 
         if (response) {
-          const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+          let currentUser = null;
+          try {
+            const userStr = await AsyncStorage.getItem('user');
+            currentUser = userStr ? JSON.parse(userStr) : null;
+          } catch {}
 
           const finalMessage = {
             id: response._id || tempId,
@@ -120,9 +167,7 @@ export const sendPendingMessages = async () => {
             await dbService.removeMessage(cacheKey, tempId);
           }
 
-          window.dispatchEvent(new CustomEvent('pending-message-sent', {
-            detail: { cacheKey, tempId, message: finalMessage }
-          }));
+          _emitPendingSent({ cacheKey, tempId, message: finalMessage });
         }
 
         await dbService.removePendingMessage(tempId);
@@ -138,20 +183,39 @@ export const sendPendingMessages = async () => {
   }
 };
 
-export const setupOfflineHandler = () => {
-  window.addEventListener('online', async () => {
-    isOnline = true;
-    const pending = await dbService.getPendingMessages();
-    if (pending.length > 0) {
-      showToast.success('Back online! Catching up on new messages and sending pending messages...');
-    }
-    sendPendingMessages();
-  });
+let _offlineHandlerSetUp = false;
 
-  window.addEventListener('offline', () => {
-    isOnline = false;
-    showToast.info('You are offline. Messages will be sent when you are back online.');
-  });
+export const setupOfflineHandler = () => {
+  if (_offlineHandlerSetUp) {
+    sendPendingMessages();
+    return;
+  }
+  _offlineHandlerSetUp = true;
+
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('online', async () => {
+      isOnline = true;
+      const pending = await dbService.getPendingMessages();
+      if (pending.length > 0) {
+        showToast.success('Back online! Sending pending messages...');
+      }
+      sendPendingMessages();
+    });
+
+    window.addEventListener('offline', () => {
+      isOnline = false;
+      showToast.info('You are offline. Messages will be sent when you are back online.');
+    });
+  }
+
+  if (typeof AppState !== 'undefined' && AppState.addEventListener) {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        isOnline = isOnlineSafe();
+        sendPendingMessages();
+      }
+    });
+  }
 
   sendPendingMessages();
 };

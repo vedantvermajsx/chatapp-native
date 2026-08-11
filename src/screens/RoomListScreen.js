@@ -14,7 +14,6 @@ import Spinner from '../components/common/Spinner';
 import { dbService } from '../services/localDB.service';
 import { showApiError } from '../utils/toast';
 import { generateRsaKeyPairPem } from '../utils/crypto';
-
 import SidebarHeader from '../components/room/SidebarHeader';
 import RoomSearch from '../components/room/RoomSearch';
 import RoomTabBar from '../components/room/RoomTabBar';
@@ -148,23 +147,27 @@ export default function RoomListScreen({ navigation }) {
 
       isBrandNew = true;
 
-      if (!isOwnMessage) {
-        const otherUser = {
-          id: otherUserId,
-          username: msg.senderUsername || msg.username || 'Unknown',
-          role: (msg.senderModel?.toLowerCase() || 'user'),
-          avatar: msg.avatar || null,
-          isOnline: msg.isOnline,
-        };
-        const next = [{ otherUser, lastMessage }, ...prev];
-        dbService.savePrivateChats(next);
-        return next;
-      }
-
-      return prev;
+      const otherUser = isOwnMessage
+        ? {
+            id: otherUserId,
+            username: msg.receiverUsername || msg.username || 'Unknown',
+            role: (msg.receiverModel?.toLowerCase() || 'user'),
+            avatar: msg.receiverAvatar || null,
+            isOnline: msg.isOnline,
+          }
+        : {
+            id: otherUserId,
+            username: msg.senderUsername || msg.username || 'Unknown',
+            role: (msg.senderModel?.toLowerCase() || 'user'),
+            avatar: msg.avatar || null,
+            isOnline: msg.isOnline,
+          };
+      const next = [{ otherUser, lastMessage }, ...prev];
+      dbService.savePrivateChats(next);
+      return next;
     });
 
-    if (isOwnMessage && isBrandNew) {
+    if (isBrandNew) {
       loadPrivate();
     }
   }, [user, loadPrivate]);
@@ -206,7 +209,7 @@ export default function RoomListScreen({ navigation }) {
     });
   }, []);
 
-  const { emitJoinRoom } = useChatSocket(user, {
+  const { emitJoinRoom, connected } = useChatSocket(user, {
     onRoomEvent: handleRoomEvent,
     onPrivateMessage: handlePrivateMessage,
     onUnreadUpdate: handleUnreadUpdate,
@@ -217,15 +220,20 @@ export default function RoomListScreen({ navigation }) {
     loadJoined();
     loadGlobal();
     loadPrivate();
+  }, [loadJoined, loadGlobal, loadPrivate]);
+
+  // Refetch unread counts only on app open and whenever the socket (re)connects
+  // (e.g. after a network drop) — not on every room switch/screen focus.
+  useEffect(() => {
+    if (!connected) return;
     loadUnread();
-  }, [loadJoined, loadGlobal, loadPrivate, loadUnread]);
+  }, [connected, loadUnread]);
 
   useFocusEffect(
     useCallback(() => {
       loadJoined();
-      loadUnread();
       loadPrivate();
-    }, [loadJoined, loadUnread, loadPrivate])
+    }, [loadJoined, loadPrivate])
   );
 
   const onRefresh = async () => {

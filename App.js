@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { CallProvider } from './src/contexts/CallContext';
 import { useChatSocket } from './src/hooks/useChatSocket';
+import { setupOfflineHandler } from './src/services/offlineMessageHandler';
 import CallOverlay from './src/components/call/CallOverlay';
 import RootNavigator from './src/navigation/RootNavigator';
 
@@ -24,13 +25,17 @@ function CallGate({ children }) {
 }
 
 function SplashGate() {
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
 
   useEffect(() => {
     if (!loading) {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [loading]);
+
+  useEffect(() => {
+    if (user) setupOfflineHandler();
+  }, [user]);
 
   return (
     <CallGate>

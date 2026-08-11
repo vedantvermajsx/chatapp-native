@@ -5,6 +5,7 @@ import authService from '../services/auth.service';
 import { dbService } from '../services/localDB.service';
 import keyManager from '../services/keyManager';
 import { generateRsaKeyPairPem } from '../utils/crypto';
+import { onSessionExpired } from '../events/sessionEvents';
 
 const AuthContext = createContext();
 
@@ -16,10 +17,10 @@ export const AuthProvider = ({ children }) => {
       const userStr = await AsyncStorage.getItem('user');
       if (userStr) {
         const storedUser = JSON.parse(userStr);
-        setUser(storedUser);
         if (storedUser?._id) {
-          keyManager.loadSelfPrivateKey(storedUser._id).catch(() => {});
+          await keyManager.loadSelfPrivateKey(storedUser._id).catch(() => {});
         }
+        setUser(storedUser);
       }
       setLoading(false);
     })();
@@ -83,6 +84,10 @@ export const AuthProvider = ({ children }) => {
       console.error('Error clearing local DB on logout:', err);
     }
   };
+
+  useEffect(() => {
+    return onSessionExpired(logout);
+  }, []);
 
   const updateUser = async (userData) => {
     const merged = { ...(user || {}), ...userData };
