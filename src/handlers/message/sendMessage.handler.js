@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import messageService from '../../services/message.service.js';
 import { updatePrivateChatOptimistically } from '../private/updatePrivateChatOptimistically.handler.js';
 import { dbService } from '../../services/localDB.service.js';
+import { replaceAndDedupe } from '../../utils/chatHelpers.js';
 
 function isOnlineSafe() {
   if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
@@ -217,7 +218,7 @@ export const sendMessageHandler = async (
           taggedUser: messageTaggedUserId
         };
 
-        setMessages((prev)=>prev.map((msg)=> ((msg.id || msg._id) === tempId || (msg.id || msg._id) === newMessageObj.id? newMessageObj:msg)));
+        setMessages((prev) => replaceAndDedupe(prev, tempId, newMessageObj));
 
         const cacheKey = `room_${currentRoom._id}`;
         if (messageCache.current[cacheKey]) {
@@ -253,7 +254,7 @@ export const sendMessageHandler = async (
           isPending: false
         };
         
-        setMessages((prev) => prev.map((msg) => (msg.id === tempId || msg.id === newMessageObj.id) ? newMessageObj : msg));
+        setMessages((prev) => replaceAndDedupe(prev, tempId, newMessageObj));
 
         const cacheKey = `private_${currentPrivateChat.id}`;
         if (messageCache.current[cacheKey]) {
@@ -369,9 +370,7 @@ export const sendStickerHandler = async (
         isPending: false
       };
 
-      setMessages((prev) => prev.map((msg) =>
-        (msg.id || msg._id) === tempId || (msg.id || msg._id) === newMessageObj.id ? newMessageObj : msg
-      ));
+      setMessages((prev) => replaceAndDedupe(prev, tempId, newMessageObj));
 
       if (currentRoom) {
         const cacheKey = `room_${currentRoom._id}`;

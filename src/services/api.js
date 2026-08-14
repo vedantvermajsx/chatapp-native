@@ -6,7 +6,6 @@ import { dbService } from './localDB.service';
 
 export const BASE_URL = process.env.EXPO_PUBLIC_LOAD_BALENCER_URL_ || 'http://192.168.1.100:5000/api';
 
-console.log('[API] Using BASE_URL:', BASE_URL);
 
 const apiClient = axios.create({
   baseURL: BASE_URL,

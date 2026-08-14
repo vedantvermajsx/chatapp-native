@@ -5,13 +5,14 @@ import UserProfileModal from '../modals/UserProfileModal';
 import { useTheme } from '../../contexts/ThemeContext';
 import { styles } from './styles';
 
-export default function UserSearchRow({ user, navigation }) {
+export default function UserSearchRow({ user, navigation, onStartChat }) {
   const { theme } = useTheme();
   const accent = theme.primary || theme.myMessageBubble || '#008080';
   const userId = user.id || user._id;
   const [showProfile, setShowProfile] = useState(false);
 
   const handleStartChat = () => {
+    onStartChat?.(user);
     navigation.navigate('Chat', {
       privateChat: { ...user, id: userId },
     });

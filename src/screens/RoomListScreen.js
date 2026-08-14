@@ -9,7 +9,9 @@ import { useTheme } from '../contexts/ThemeContext';
 import roomService from '../services/room.service';
 import messageService from '../services/message.service';
 import userService from '../services/user.service';
-import { useChatSocket, getActiveChatKey } from '../hooks/useChatSocket';
+import { useChatSocket } from '../hooks/useChatSocket';
+import { useUnreadCounts } from '../contexts/UnreadCountsContext';
+import { onPrivateChatUpdated } from '../events/privateChatEvents';
 import Spinner from '../components/common/Spinner';
 import { dbService } from '../services/localDB.service';
 import { showApiError } from '../utils/toast';
@@ -40,7 +42,7 @@ export default function RoomListScreen({ navigation }) {
   const [loadingGlobal, setLoadingGlobal] = useState(false);
   const [loadingPrivate, setLoadingPrivate] = useState(false);
   const [joiningRoomId, setJoiningRoomId] = useState(null);
-  const [unreadCounts, setUnreadCounts] = useState({});
+  const { unreadCounts, loadUnread } = useUnreadCounts();
   const [userResults, setUserResults] = useState([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
 
@@ -91,6 +93,31 @@ export default function RoomListScreen({ navigation }) {
     }
   }, []);
 
+  const mergePrivateChats = (serverList, localList) => {
+    const byId = new Map();
+    serverList.forEach((c) => {
+      const id = c.otherUser?.id || c.otherUser?._id;
+      if (id) byId.set(id, c);
+    });
+    localList.forEach((c) => {
+      const id = c.otherUser?.id || c.otherUser?._id;
+      if (!id) return;
+      const serverEntry = byId.get(id);
+      if (!serverEntry) {
+        byId.set(id, c);
+        return;
+      }
+      const serverTs = new Date(serverEntry.lastMessage?.timestamp || 0).getTime();
+      const localTs = new Date(c.lastMessage?.timestamp || 0).getTime();
+      if (localTs > serverTs) {
+        byId.set(id, { ...serverEntry, lastMessage: c.lastMessage });
+      }
+    });
+    return Array.from(byId.values()).sort(
+      (a, b) => new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
+    );
+  };
+
   const loadPrivate = useCallback(async () => {
     const cached = await dbService.getPrivateChats();
     if (cached.length) setPrivateChats((prev) => (prev.length ? prev : cached));
@@ -99,8 +126,11 @@ export default function RoomListScreen({ navigation }) {
     try {
       const data = await messageService.getPrivateChats();
       const list = Array.isArray(data) ? data : (data.chats || []);
-      setPrivateChats(list);
-      await dbService.savePrivateChats(list);
+      setPrivateChats((prev) => {
+        const merged = mergePrivateChats(list, prev);
+        dbService.savePrivateChats(merged).catch(() => {});
+        return merged;
+      });
     } catch (e) {
       if (!cached.length) {
         setPrivateChats([]);
@@ -109,6 +139,25 @@ export default function RoomListScreen({ navigation }) {
     } finally {
       setLoadingPrivate(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onPrivateChatUpdated((otherUser, lastMessage) => {
+      setPrivateChats((prev) => {
+        const idx = prev.findIndex((c) => (c.otherUser?.id || c.otherUser?._id) === otherUser.id);
+        let next;
+        if (idx !== -1) {
+          const existing = prev[idx];
+          const updated = { ...existing, otherUser: { ...existing.otherUser, ...otherUser }, lastMessage };
+          next = [updated, ...prev.slice(0, idx), ...prev.slice(idx + 1)];
+        } else {
+          next = [{ otherUser, lastMessage }, ...prev];
+        }
+        dbService.savePrivateChats(next).catch(() => {});
+        return next;
+      });
+    });
+    return unsubscribe;
   }, []);
 
   const handleRoomEvent = useCallback((evt) => {
@@ -126,16 +175,38 @@ export default function RoomListScreen({ navigation }) {
     }
   }, [loadJoined, loadGlobal]);
 
-  const handlePrivateMessage = useCallback((msg) => {
+  const handleStartPrivateChat = useCallback((otherUser) => {
+    const otherUserId = otherUser.id || otherUser._id;
+    if (!otherUserId) return;
+
+    setPrivateChats((prev) => {
+      const idx = prev.findIndex((c) => (c.otherUser?.id || c.otherUser?._id) === otherUserId);
+      if (idx !== -1) {
+        const updated = [...prev];
+        const [existing] = updated.splice(idx, 1);
+        const next = [existing, ...updated];
+        dbService.savePrivateChats(next);
+        return next;
+      }
+
+      const next = [{ otherUser: { ...otherUser, id: otherUserId }, lastMessage: null }, ...prev];
+      dbService.savePrivateChats(next);
+      return next;
+    });
+  }, []);
+
+  const handlePrivateMessage = useCallback(async (msg) => {
     const myId = user?._id || user?.id;
     const isOwnMessage = msg.senderId === myId;
     const otherUserId = isOwnMessage ? msg.receiverId : msg.senderId;
     if (!otherUserId) return;
 
+    const previewText = await messageService.decryptChatPreview(msg);
+
     let isBrandNew = false;
     setPrivateChats((prev) => {
       const idx = prev.findIndex((c) => (c.otherUser?.id || c.otherUser?._id) === otherUserId);
-      const lastMessage = { content: msg.content, timestamp: msg.timestamp || new Date().toISOString() };
+      const lastMessage = { content: previewText, timestamp: msg.timestamp || new Date().toISOString() };
 
       if (idx !== -1) {
         const updated = [...prev];
@@ -172,48 +243,9 @@ export default function RoomListScreen({ navigation }) {
     }
   }, [user, loadPrivate]);
 
-  const loadUnread = useCallback(async () => {
-    const cached = await dbService.loadUnreadCounts();
-    if (Object.keys(cached).length) setUnreadCounts((prev) => (Object.keys(prev).length ? prev : cached));
-
-    try {
-      const counts = await roomService.getUnreadCounts();
-      const next = counts && typeof counts === 'object' ? { ...counts } : {};
-      const activeKey = getActiveChatKey();
-      if (activeKey) delete next[activeKey];
-      setUnreadCounts(next);
-      await dbService.saveUnreadCounts(next);
-    } catch (e) {
-      
-    }
-  }, []);
-
-  const handleUnreadUpdate = useCallback(({ chatKey } = {}) => {
-    if (!chatKey || chatKey === getActiveChatKey()) return;
-    setUnreadCounts((prev) => {
-      const next = { ...prev, [chatKey]: (prev[chatKey] || 0) + 1 };
-      dbService.saveUnreadCounts(next);
-      return next;
-    });
-  }, []);
-
-  const handleRoomReadAck = useCallback(({ roomId }) => {
-    if (!roomId) return;
-    setUnreadCounts((prev) => {
-      const key = `room_${roomId}`;
-      if (!prev[key]) return prev;
-      const next = { ...prev };
-      delete next[key];
-      dbService.saveUnreadCounts(next);
-      return next;
-    });
-  }, []);
-
-  const { emitJoinRoom, connected } = useChatSocket(user, {
+  const { emitJoinRoom } = useChatSocket(user, {
     onRoomEvent: handleRoomEvent,
     onPrivateMessage: handlePrivateMessage,
-    onUnreadUpdate: handleUnreadUpdate,
-    onRoomReadAck: handleRoomReadAck,
   });
 
   useEffect(() => {
@@ -221,13 +253,6 @@ export default function RoomListScreen({ navigation }) {
     loadGlobal();
     loadPrivate();
   }, [loadJoined, loadGlobal, loadPrivate]);
-
-  // Refetch unread counts only on app open and whenever the socket (re)connects
-  // (e.g. after a network drop) — not on every room switch/screen focus.
-  useEffect(() => {
-    if (!connected) return;
-    loadUnread();
-  }, [connected, loadUnread]);
 
   useFocusEffect(
     useCallback(() => {
@@ -431,7 +456,7 @@ export default function RoomListScreen({ navigation }) {
             <Text style={styles.emptyInline}>No users found</Text>
           ) : (
             people.map((u) => (
-              <UserSearchRow key={u.id || u._id} user={u} navigation={navigation} />
+              <UserSearchRow key={u.id || u._id} user={u} navigation={navigation} onStartChat={handleStartPrivateChat} />
             ))
           )}
         </ScrollView>

@@ -3,18 +3,7 @@
  * ------
  * Recursively strips `null` and `undefined` values from a value before it is
  * sent to the backend. Many call sites build payloads with optional fields
- * using `value || null`, which means axios (via JSON.stringify) would
- * otherwise serialize those fields as explicit `null`s instead of omitting
- * them. Centralizing the cleanup here means individual services don't need
- * to hand-roll conditional spreads (`...(x && { x })`) to keep payloads clean.
- *
- * - Plain objects: keys whose value is null/undefined are dropped; nested
- *   objects/arrays are cleaned recursively.
- * - Arrays: null/undefined entries are dropped; remaining entries are
- *   cleaned recursively (array shape/order of remaining items is preserved).
- * - Dates, FormData, Blobs/Files and other non-plain objects are returned
- *   untouched, since they aren't safe (or meaningful) to walk as plain data.
- * - Primitives are returned as-is.
+ * using `value || null`
  */
 
 function isFormDataLike(value) {

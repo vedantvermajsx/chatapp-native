@@ -4,6 +4,7 @@ import * as SystemUI from 'expo-system-ui';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { UnreadCountsProvider } from '../contexts/UnreadCountsContext';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import GuestScreen from '../screens/GuestScreen';
@@ -49,33 +50,35 @@ export default function RootNavigator() {
 
   if (user) {
     return (
-      <Stack.Navigator screenOptions={screenOpts}>
-        <Stack.Screen
-          name="Rooms"
-          component={RoomListScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Chat"
-          component={ChatScreen}
-          options={chatOptions}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Storage"
-          component={StorageScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="SecurityPolicy"
-          component={SecurityPolicyScreen}
-          options={{ headerShown: false }}
-        />
-      </Stack.Navigator>
+      <UnreadCountsProvider>
+        <Stack.Navigator screenOptions={screenOpts}>
+          <Stack.Screen
+            name="Rooms"
+            component={RoomListScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Chat"
+            component={ChatScreen}
+            options={chatOptions}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Storage"
+            component={StorageScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="SecurityPolicy"
+            component={SecurityPolicyScreen}
+            options={{ headerShown: false }}
+          />
+        </Stack.Navigator>
+      </UnreadCountsProvider>
     );
   }
 

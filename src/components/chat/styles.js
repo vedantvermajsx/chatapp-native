@@ -34,7 +34,7 @@ export const styles = StyleSheet.create({
 
   // ── MembersPanel 
   panelBackdrop: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
-  panel: { width: '90%', maxWidth: 440, height: '100%', maxHeight: 1500, borderRadius: 10, borderLeftWidth: 1 },
+  panel: { width: '72%', maxWidth: 380, height: '100%', maxHeight: 1500, borderRadius: 10, borderLeftWidth: 1 },
   panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1 },
   panelTitle: { fontSize: 17, fontWeight: '700' },
   panelSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 8, marginTop: 8, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4 },
@@ -54,7 +54,7 @@ export const styles = StyleSheet.create({
   stickerCell: { flex: 1 / 4, aspectRatio: 1, margin: 3, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   stickerCellImg: { width: '90%', height: '90%' },
   stickerTabs: { flexDirection: 'row', borderBottomWidth: 1 },
-  stickerTabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center' },
+  stickerTabBtn: { flex: 1, paddingVertical: 8, paddingHorizontal: 6, marginVertical: 6, marginHorizontal: 4, alignItems: 'center' },
   stickerSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 10, marginTop: 8, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   stickerSearchInput: { flex: 1, fontSize: 12, paddingVertical: 2 },
   stickerFooter: { alignItems: 'flex-end', paddingHorizontal: 10, paddingVertical: 5 },

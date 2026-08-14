@@ -8,12 +8,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useCall } from '../contexts/CallContext';
 import { useChatSocket, setActiveChatKey } from '../hooks/useChatSocket';
+import { useUnreadCounts } from '../contexts/UnreadCountsContext';
 import messageService from '../services/message.service';
 import roomService from '../services/room.service';
 import { applyLastRead } from '../utils/applyLastRead';
 import { showApiError } from '../utils/toast';
 import { dbService } from '../services/localDB.service';
 import { setOfflineHandlerDependencies, addPendingMessageSentListener } from '../services/offlineMessageHandler';
+import { emitPrivateChatUpdated } from '../events/privateChatEvents';
 import keyManager from '../services/keyManager';
 import { decryptForRoom, decryptPrivateMessage } from '../utils/crypto';
 import { 
@@ -38,6 +40,7 @@ import Spinner from '../components/common/Spinner';
 export default function ChatScreen({ route, navigation }) {
   const { room: initialRoom, privateChat: initialPrivateChat } = route.params || {};
   const { user } = useAuth();
+  const { setUnreadCounts, syncUnreadCount } = useUnreadCounts();
   const { theme, chatBackgroundUri } = useTheme();
   const { startCall } = useCall();
   const [currentRoom, setCurrentRoom] = useState(initialRoom || null);
@@ -90,14 +93,19 @@ export default function ChatScreen({ route, navigation }) {
         replyTo = { ...restReply, text: 'Unable to decrypt message' };
       }
     }
-    if (!raw.iv || !raw.wrappedKey || !roomPrivateKey) return { ...raw, replyTo };
+    if (!raw.iv || !raw.wrappedKey) return { ...raw, replyTo }; // genuinely unencrypted
+    if (!roomPrivateKey) {
+      const { iv, wrappedKey, ...rest } = raw;
+      return { ...rest, text: 'Unable to decrypt message', replyTo };
+    }
     try {
       const text = await decryptForRoom(raw.text ?? raw.message ?? '', raw.iv, raw.wrappedKey, roomPrivateKey);
       const { iv, wrappedKey, ...rest } = raw;
       return { ...rest, text, replyTo };
     } catch (err) {
       console.error('[ChatScreen] room decrypt error:', err.message);
-      return { ...raw, text: 'Unable to decrypt message', replyTo };
+      const { iv, wrappedKey, ...rest } = raw;
+      return { ...rest, text: 'Unable to decrypt message', replyTo };
     }
   }, [roomPrivateKey]);
 
@@ -122,18 +130,25 @@ export default function ChatScreen({ route, navigation }) {
       }
     }
 
-    if (!raw.iv) return { ...raw, replyTo };
-    if (!privateKeyPem) return { ...raw, replyTo };
+    if (!raw.iv) return { ...raw, replyTo }; // genuinely unencrypted
+    if (!privateKeyPem) {
+      const { iv, senderKeyWrapped, receiverKeyWrapped, ...rest } = raw;
+      return { ...rest, text: 'Unable to decrypt message', replyTo };
+    }
     const isOwn = String(raw.senderId) === String(myId);
     const wrappedKeyForMe = isOwn ? raw.senderKeyWrapped : raw.receiverKeyWrapped;
-    if (!wrappedKeyForMe) return { ...raw, replyTo };
+    if (!wrappedKeyForMe) {
+      const { iv, senderKeyWrapped, receiverKeyWrapped, ...rest } = raw;
+      return { ...rest, text: 'Unable to decrypt message', replyTo };
+    }
     try {
       const text = await decryptPrivateMessage(raw.text ?? raw.content ?? '', raw.iv, wrappedKeyForMe, privateKeyPem);
       const { iv, senderKeyWrapped, receiverKeyWrapped, ...rest } = raw;
       return { ...rest, text, replyTo };
     } catch (err) {
       console.error('[ChatScreen] private decrypt error:', err.message);
-      return { ...raw, text: 'Unable to decrypt message', replyTo };
+      const { iv, senderKeyWrapped, receiverKeyWrapped, ...rest } = raw;
+      return { ...rest, text: 'Unable to decrypt message', replyTo };
     }
   }, [myId]);
 
@@ -195,7 +210,7 @@ export default function ChatScreen({ route, navigation }) {
         if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
         if (unreadCount > 0) {
           setLoadingNewMessages(true);
-          const merged = await _fetchNewRoomMessages(roomId, cacheKey, cached.messages, myId, setMessages, undefined, roomPrivateKey);
+          const merged = await _fetchNewRoomMessages(roomId, cacheKey, cached.messages, myId, setMessages, undefined, roomPrivateKey, setUnreadCounts);
           setLoadingNewMessages(false);
           const newLast = merged[merged.length - 1];
           if (newLast) emitMarkRoomReadRef.current({ roomId, messageId: newLast.id, timestamp: newLast.timestamp });
@@ -212,6 +227,7 @@ export default function ChatScreen({ route, navigation }) {
       setMessages(normalized);
       setHasMoreOlder(!!data.hasMore);
       await dbService.saveMessages(cacheKey, normalized, data.hasMore);
+      syncUnreadCount(cacheKey, data.unreadCount);
       const last = normalized[normalized.length - 1];
       if (last) {
         emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
@@ -221,7 +237,7 @@ export default function ChatScreen({ route, navigation }) {
     } finally {
       setLoadingMessages(false);
     }
-  }, [roomId, myId, roomPrivateKey, decryptRoomMsg]);
+  }, [roomId, myId, roomPrivateKey, decryptRoomMsg, setUnreadCounts, syncUnreadCount]);
 
   const loadPrivateMessages = useCallback(async () => {
     if (!otherUserId) return;
@@ -237,11 +253,10 @@ export default function ChatScreen({ route, navigation }) {
       _refreshLastReadStatus(otherUserId, myId, setMessages);
 
       if (unreadCount > NEW_MESSAGES_BUTTON_THRESHOLD) {
-        // Big backlog: don't block/auto-fetch, let the user trigger it via the jump-to-new button.
         setNewMessagesCount(unreadCount);
       } else if (unreadCount > 0) {
         setLoadingNewMessages(true);
-        await _fetchNewPrivateMessages(otherUserId, cacheKey, cached.messages, myId, setMessages, emitMarkReadRef);
+        await _fetchNewPrivateMessages(otherUserId, cacheKey, cached.messages, myId, setMessages, emitMarkReadRef, undefined, setUnreadCounts);
         setLoadingNewMessages(false);
       } else {
         const last = cached.messages[cached.messages.length - 1];
@@ -261,6 +276,7 @@ export default function ChatScreen({ route, navigation }) {
       setMessages(withRead);
       setHasMoreOlder(!!data.hasMore);
       await dbService.saveMessages(cacheKey, withRead, data.hasMore);
+      syncUnreadCount(cacheKey, data.unreadCount);
       const last = withRead[withRead.length - 1];
       if (last && !last.isOwn && !last.isSystemMessage) {
         emitMarkReadRef.current({
@@ -275,7 +291,7 @@ export default function ChatScreen({ route, navigation }) {
     } finally {
       setLoadingMessages(false);
     }
-  }, [otherUserId, myId, decryptPrivateMsg]);
+  }, [otherUserId, myId, decryptPrivateMsg, setUnreadCounts, syncUnreadCount]);
 
   const handleLoadNewMessages = useCallback(async () => {
     if (loadingNewMessages) return;
@@ -292,7 +308,7 @@ export default function ChatScreen({ route, navigation }) {
             setNewMessagesCount((prev) => Math.max(0, prev - addedCount));
             scrollToEnd();
           },
-        }, roomPrivateKey);
+        }, roomPrivateKey, setUnreadCounts);
         const last = merged[merged.length - 1];
         if (last) emitMarkRoomReadRef.current({ roomId, messageId: last.id, timestamp: last.timestamp });
       } else if (otherUserId) {
@@ -304,14 +320,14 @@ export default function ChatScreen({ route, navigation }) {
             setNewMessagesCount((prev) => Math.max(0, prev - addedCount));
             scrollToEnd();
           },
-        });
+        }, setUnreadCounts);
       }
     } finally {
       setNewMessagesCount(0);
       setLoadingNewMessages(false);
       scrollToEnd();
     }
-  }, [roomId, otherUserId, myId, loadingNewMessages, scrollToEnd]);
+  }, [roomId, otherUserId, myId, loadingNewMessages, scrollToEnd, setUnreadCounts]);
 
   const loadMoreMessages = useCallback(async () => {
     if (loadingOlder || !hasMoreOlder) return;
@@ -367,9 +383,6 @@ export default function ChatScreen({ route, navigation }) {
     else if (otherUserId) loadPrivateMessages();
   }, [roomId, otherUserId, loadRoomMessages, loadPrivateMessages]);
 
-  // Keep the background offline-retry queue aware of which chat is open, so
-  // pending messages that finish sending while this screen is mounted are
-  // reflected live, and so it knows whether to report upload progress here.
   useEffect(() => {
     setOfflineHandlerDependencies({
       currentRoom,
@@ -577,10 +590,18 @@ export default function ChatScreen({ route, navigation }) {
 
     setMessages((prev) => [...prev, optimistic]);
     scrollToEnd();
+
+    if (otherUserId && currentPrivateChat) {
+      emitPrivateChatUpdated(
+        { ...currentPrivateChat, id: otherUserId },
+        { content: media ? (media.type === 'sticker' ? '🎭' : text || 'Media') : text, timestamp: optimistic.timestamp }
+      );
+    }
+
     return { uuid, optimistic };
   };
 
-  const resolveOptimistic = useCallback((uuid, response, media, originalCacheKey, replyTo, taggedUserId) => {
+  const resolveOptimistic = useCallback((uuid, response, media, originalCacheKey, replyTo, taggedUserId, text) => {
     setMessages((prev) => {
       const idx = prev.findIndex((m) => m.uuid === uuid || m.id === uuid);
       if (idx === -1) return prev;
@@ -603,7 +624,7 @@ export default function ChatScreen({ route, navigation }) {
             uuid,
             username: user.username,
             avatar: user.avatar,
-            text: response?.message || response?.content || '',
+            text: text ?? '',
             media: media || null,
             isOwn: true,
             isPending: false,
@@ -658,11 +679,9 @@ export default function ChatScreen({ route, navigation }) {
           taggedUser: taggedUserId,
         });
       }
-      resolveOptimistic(uuid, response, finalMedia, originalCacheKey, replySnapshot, taggedUserId);
+      resolveOptimistic(uuid, response, finalMedia, originalCacheKey, replySnapshot, taggedUserId, text);
     } catch (e) {
       showApiError(e, 'Message not delivered (still pending)');
-      // Queue the message so it's retried automatically once we're back
-      // online or the app relaunches, instead of leaving it stuck forever.
       try {
         const pendingMessageData = {
           id: uuid,

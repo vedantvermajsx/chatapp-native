@@ -1,6 +1,6 @@
 import 'react-native-get-random-values';
 import { install } from 'react-native-quick-crypto';
-import { decode as b64decode, encode as b64encode } from 'base-64';
+//import { decode as b64decode, encode as b64encode } from 'base-64';
 import { Buffer } from 'buffer';
 
 install();

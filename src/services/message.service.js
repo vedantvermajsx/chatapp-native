@@ -213,9 +213,54 @@ class MessageService {
     return res.data;
   }
 
+  _mediaPreviewText(media) {
+    if (!media) return '';
+    const type = media.type || media.mimeType || '';
+    if (type.startsWith('video')) return '🎥 Video';
+    if (type.startsWith('image/gif') || type === 'gif') return '🎞️ GIF';
+    if (type === 'sticker') return '🎭 Sticker';
+    if (type.startsWith('audio')) return '🎤 Voice message';
+    if (type.startsWith('image')) return '📷 Photo';
+    return '📎 Attachment';
+  }
+
+  async decryptChatPreview(lastMessage) {
+    if (!lastMessage) return '';
+
+    if (lastMessage.isSystemMessage || !lastMessage.iv) {
+      return lastMessage.content ?? this._mediaPreviewText(lastMessage.media);
+    }
+
+    const selfId = keyManager.getSelfId();
+    const privateKeyPem = await keyManager.getSelfPrivateKey();
+    if (!privateKeyPem) return ' New message';
+
+    const isOwn = String(lastMessage.senderId) === String(selfId);
+    const wrappedKeyForMe = isOwn ? lastMessage.senderKeyWrapped : lastMessage.receiverKeyWrapped;
+    if (!wrappedKeyForMe) return ' New message';
+
+    try {
+      const cipherText = lastMessage.content ?? lastMessage.text ?? '';
+      const content = await decryptPrivateMessage(cipherText, lastMessage.iv, wrappedKeyForMe, privateKeyPem);
+      return content || this._mediaPreviewText(lastMessage.media);
+    } catch (err) {
+      console.error('[messageService] chat list preview decrypt failed:', err.message);
+      return 'Unable to decrypt message';
+    }
+  }
+
+  async _decryptChatListPreviews(chats) {
+    if (!chats?.length) return chats;
+    return Promise.all(chats.map(async (chat) => {
+      if (!chat.lastMessage) return chat;
+      const content = await this.decryptChatPreview(chat.lastMessage);
+      return { ...chat, lastMessage: { ...chat.lastMessage, content } };
+    }));
+  }
+
   async getPrivateChats() {
     const res = await api.get(`${this.basePath}/private`);
-    return res.data;
+    return this._decryptChatListPreviews(res.data);
   }
 
   async deletePrivateChat(otherUserId) {

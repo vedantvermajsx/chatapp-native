@@ -5,8 +5,8 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "backgroundColor": "#e6e6e6",
-    "userInterfaceStyle": "light",
+    "backgroundColor": "#000000",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rnapp.app",
@@ -30,26 +30,26 @@
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icon.png"
     },
     "plugins": [
       "expo-video",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/icon.png",
           "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#e6e6e6"
+          "backgroundColor": "#000000"
         }
       ],
       [
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": false,
-            "enableShrinkResourcesInReleaseBuilds": false,
-            "enableMinifyInReleaseBuilds": false
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ],
@@ -57,9 +57,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "f1008fd4-2689-4f4a-b216-f1a242661bd9"
+        "projectId": "f7d9eda5-b06c-48e7-ac66-cf5e09555257"
       }
     },
-    "owner": "gatherup-nows-team"
+    "owner": "gatherupapps-team"
   }
 }

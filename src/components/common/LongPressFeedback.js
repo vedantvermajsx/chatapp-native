@@ -3,13 +3,8 @@ import { Animated, Pressable, Vibration } from 'react-native';
 
 const RELEASE_ANIM_DURATION = 150;
 
-/**
- * Wraps `children` in a Pressable that gives a small, building "press"
- * animation (slight shrink + dim) for the duration of the hold, so the user
- * senses something is about to happen before onLongPress actually fires —
- * rather than the action just appearing out of nowhere. A short vibration
- * confirms the moment it fires.
- */
+// Wraps `children` in a Pressable that gives a small, building "press"
+// animation (slight shrink + dim) for the duration of the hold
 export function LongPressFeedback({
   children,
   onLongPress,

@@ -7,8 +7,6 @@ const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setThemeState] = useState(THEMES[0]);
-  // Local-only chat screen background image (registered users can set this
-  // from Appearance). Never uploaded — see utils/chatBackground.js.
   const [chatBackgroundUri, setChatBackgroundUriState] = useState(null);
   const [loaded, setLoaded] = useState(false);
 

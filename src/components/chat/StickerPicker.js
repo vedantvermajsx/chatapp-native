@@ -6,10 +6,10 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useCachedMediaUri } from '../../hooks/useCachedMediaUri';
 import { warmCache } from '../../utils/mediaCache';
 import { styles } from './styles';
+import apiClient from '../../services/api';
 
-const API_KEY = process.env.EXPO_PUBLIC_KLIPY_API_KEY;
-const STICKER_BASE = `https://api.klipy.com/api/v1/${API_KEY}/stickers`;
-const GIF_BASE = `https://api.klipy.com/api/v1/${API_KEY}/gifs`;
+const STICKER_BASE = 'stickers';
+const GIF_BASE = 'gifs';
 
 const FORMAT_ORDER = {
   web: ['gif', 'webp', 'png'],
@@ -55,11 +55,11 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
     loadingRef.current = true;
     setLoading(true);
     try {
-      const url = q
-        ? `${tabBase}/search?q=${encodeURIComponent(q)}&page=${pg}&per_page=12`
-        : `${tabBase}/trending?page=${pg}&per_page=12`;
-      const res = await fetch(url);
-      const json = await res.json();
+      const endpoint = q ? 'search' : 'trending';
+      const res = await apiClient.get(`/media/${tabBase}/${endpoint}`, {
+        params: q ? { q, page: pg, per_page: 12 } : { page: pg, per_page: 12 },
+      });
+      const json = res.data;
       const list = json?.data?.data || [];
       const next = json?.data?.has_next ?? false;
       setItems((prev) => (reset ? list : [...prev, ...list]));
@@ -136,13 +136,40 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
 
   return (
     <View style={[styles.stickerWrap, { backgroundColor: theme.background, borderColor: border }]}>
-      <View style={[styles.stickerHeader, { borderBottomColor: border }]}>
-        <Text style={[styles.stickerHeaderLabel, { color: subText }]}>
-          {mode === 'trending' ? 'Trending' : `Results for "${searchQuery}"`}
-        </Text>
-        <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+      <View style={[styles.stickerTabs, { borderBottomColor: border }]}>
+        {TABS.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              onPress={() => setActiveTab(tab.id)}
+              style={[styles.stickerTabBtn, active && { backgroundColor: accent, borderRadius: 999 }]}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '600', color: active ? '#fff' : subText }}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+        <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
           <Ionicons name="close" size={16} color={subText} />
         </TouchableOpacity>
+      </View>
+
+      <View style={[styles.stickerSearchRow, { backgroundColor: inputBg }]}>
+        <Ionicons name="search" size={14} color={subText} />
+        <TextInput
+          placeholder={`Search ${activeTab}...`}
+          placeholderTextColor={subText}
+          value={searchQuery}
+          onChangeText={handleSearch}
+          style={[styles.stickerSearchInput, { color: theme.otherMessageText }]}
+        />
+        {searchQuery ? (
+          <TouchableOpacity onPress={handleClearSearch}>
+            <Ionicons name="close" size={13} color={subText} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={styles.stickerGrid}>
@@ -184,39 +211,6 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
         )}
       </View>
 
-      <View style={[styles.stickerTabs, { borderBottomColor: border }]}>
-        {TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            onPress={() => setActiveTab(tab.id)}
-            style={[styles.stickerTabBtn, activeTab === tab.id && { borderBottomColor: accent, borderBottomWidth: 2 }]}
-          >
-            <Text style={{ fontSize: 12, fontWeight: '600', color: activeTab === tab.id ? accent : subText }}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={[styles.stickerSearchRow, { backgroundColor: inputBg }]}>
-        <Ionicons name="search" size={14} color={subText} />
-        <TextInput
-          placeholder={`Search ${activeTab}...`}
-          placeholderTextColor={subText}
-          value={searchQuery}
-          onChangeText={handleSearch}
-          style={[styles.stickerSearchInput, { color: theme.otherMessageText }]}
-        />
-        {searchQuery ? (
-          <TouchableOpacity onPress={handleClearSearch}>
-            <Ionicons name="close" size={13} color={subText} />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      <View style={styles.stickerFooter}>
-        <Text style={{ fontSize: 9, fontWeight: '500', color: subText, opacity: 0.6 }}>Powered by KLIPY</Text>
-      </View>
     </View>
   );
 }

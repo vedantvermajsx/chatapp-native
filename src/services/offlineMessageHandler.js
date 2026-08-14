@@ -107,10 +107,6 @@ export const sendPendingMessages = async () => {
                 }
               : null;
 
-            // messageService.uploadFile(asset, folder, onProgress) — the third
-            // argument must be a function (or null), never a boolean; passing
-            // `true` here made it call `true(progress)` and throw, so every
-            // resumed upload silently failed and stayed pending forever.
             const uploadResult = await messageService.uploadFile(file, 'data', updateProgress);
             finalMedia = {
               type: uploadResult.type,
