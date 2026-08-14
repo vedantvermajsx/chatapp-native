@@ -1,6 +1,6 @@
 import 'react-native-get-random-values';
 import { install } from 'react-native-quick-crypto';
-//import { decode as b64decode, encode as b64encode } from 'base-64';
+import { decode as b64decode, encode as b64encode } from 'base-64';
 import { Buffer } from 'buffer';
 
 install();
@@ -9,7 +9,7 @@ if (typeof globalThis.btoa === 'undefined') {
   globalThis.btoa = b64encode;
 }
 if (typeof globalThis.atob === 'undefined') {
-  globalThis.atob = b64decode;
+  globalThis.atob = b64decode;q
 }
 if (typeof globalThis.Buffer === 'undefined') {
   globalThis.Buffer = Buffer;

@@ -53,15 +53,14 @@ export default function ThemePickerModal({ visible, onClose }) {
             },
           ]}
         >
-          <View style={[styles.dragHandle, { backgroundColor: theme.isLight ? '#d1d5db' : '#4b5563' }]} />
+          <View style={[styles.dragHandle, { backgroundColor: theme.isLight ? '#d1d5db' : '#393d41ff' }]} />
           <View style={styles.themeHeader}>
-            <Text style={[styles.themeModalTitle, { color: theme.otherMessageText }]}>GatherUp Theme Picker</Text>
+            <Text style={[styles.themeModalTitle, { color: theme.otherMessageText }]}>Theme Picker</Text>
           </View>
 
           {!isGuest && (
             <View style={[styles.bgSection, styles.bgSectionHighlight, { borderColor: accent }]}>
               <View style={styles.bgSectionTitleRow}>
-                <Ionicons name="sparkles" size={13} color={accent} />
                 <Text style={[styles.bgSectionTitle, { color: theme.otherMessageText, marginBottom: 0 }]}>
                   Chat background
                 </Text>
@@ -107,7 +106,7 @@ export default function ThemePickerModal({ visible, onClose }) {
             </View>
           )}
 
-          <ScrollView style={{ maxHeight: 280, paddingVertical: 5 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+          <ScrollView style={{ height: 350, overflow: "scroll", paddingVertical: 5 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
             <View style={styles.themeGrid}>
               {THEMES.map((t) => {
                 const selected = t.id === theme.id;

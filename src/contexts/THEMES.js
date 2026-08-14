@@ -79,32 +79,6 @@ export const THEMES = [
     primary: '#bd93f9'
   },
   {
-    id: 'github-dark',
-    name: 'GitHub Dark',
-    background: '#0d1117',
-    myMessageBubble: '#238636',
-    myMessageText: '#ffffff',
-    myUsernameColor: '#ffffff',
-    otherMessageBubble: '#21262d',
-    otherMessageText: '#c9d1d9',
-    otherUsernameColor: '#58a6ff',
-    isLight: false,
-    primary: '#238636'
-  },
-  {
-    id: 'github-light',
-    name: 'GitHub Light',
-    background: '#ffffff',
-    myMessageBubble: '#238636',
-    myMessageText: '#ffffff',
-    myUsernameColor: '#ffffff',
-    otherMessageBubble: '#f3f4f6',
-    otherMessageText: '#1f2328',
-    otherUsernameColor: '#0969da',
-    isLight: true,
-    primary: '#238636'
-  },
-  {
     id: 'nord',
     name: 'Nord',
     background: '#2e3440',
@@ -157,19 +131,6 @@ export const THEMES = [
     primary: '#32cd32'
   },
   {
-    id: 'rose-gold',
-    name: 'Rose Gold',
-    background: '#fdf2f0',
-    myMessageBubble: '#d7837f',
-    myMessageText: '#ffffff',
-    myUsernameColor: '#ffffff',
-    otherMessageBubble: '#f5d0ce',
-    otherMessageText: '#6f4241',
-    otherUsernameColor: '#b15e5b',
-    isLight: true,
-    primary: '#d7837f'
-  },
-  {
     id: 'blush',
     name: 'Blush',
     background: '#fff0f3',
@@ -194,19 +155,6 @@ export const THEMES = [
     otherUsernameColor: '#ff4d6d',
     isLight: true,
     primary: '#ff8fab'
-  },
-  {
-    id: 'peach',
-    name: 'Peach',
-    background: '#fff3e0',
-    myMessageBubble: '#ffab91',
-    myMessageText: '#4e342e',
-    myUsernameColor: '#4e342e',
-    otherMessageBubble: '#ffe0b2',
-    otherMessageText: '#5d4037',
-    otherUsernameColor: '#ff8a65',
-    isLight: true,
-    primary: '#ffab91'
   },
   {
     id: 'lavender',
@@ -402,5 +350,241 @@ export const THEMES = [
     otherUsernameColor: '#00acc1',
     isLight: true,
     primary: '#00bcd4'
+  },
+  {
+    id: 'aurora',
+    name: 'Aurora',
+    background: '#071a1c',
+    myMessageBubble: '#14b8a6',
+    myMessageText: '#ecfeff',
+    myUsernameColor: '#99f6e4',
+    otherMessageBubble: '#12383a',
+    otherMessageText: '#ccfbf1',
+    otherUsernameColor: '#5eead4',
+    isLight: false,
+    primary: '#2dd4bf'
+  },
+
+  {
+    id: 'cyberpunk',
+    name: 'Cyberpunk',
+    background: '#090014',
+    myMessageBubble: '#ff00a8',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#ff4dc4',
+    otherMessageBubble: '#24103a',
+    otherMessageText: '#f0abfc',
+    otherUsernameColor: '#00f5ff',
+    isLight: false,
+    primary: '#00f5ff'
+  },
+
+  {
+    id: 'amoled',
+    name: 'AMOLED',
+    background: '#000000',
+    myMessageBubble: '#ffffff',
+    myMessageText: '#000000',
+    myUsernameColor: '#ffffff',
+    otherMessageBubble: '#151515',
+    otherMessageText: '#eeeeee',
+    otherUsernameColor: '#aaaaaa',
+    isLight: false,
+    primary: '#ffffff'
+  },
+
+  {
+    id: 'deep-ocean',
+    name: 'Deep Ocean',
+    background: '#061826',
+    myMessageBubble: '#0284c7',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#7dd3fc',
+    otherMessageBubble: '#102f43',
+    otherMessageText: '#dbeafe',
+    otherUsernameColor: '#38bdf8',
+    isLight: false,
+    primary: '#0ea5e9'
+  },
+
+  {
+    id: 'forest',
+    name: 'Forest',
+    background: '#0b1f17',
+    myMessageBubble: '#16a34a',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#86efac',
+    otherMessageBubble: '#16382a',
+    otherMessageText: '#dcfce7',
+    otherUsernameColor: '#4ade80',
+    isLight: false,
+    primary: '#22c55e'
+  },
+
+  {
+    id: 'coffee',
+    name: 'Coffee',
+    background: '#211914',
+    myMessageBubble: '#a16207',
+    myMessageText: '#fff7ed',
+    myUsernameColor: '#fbbf24',
+    otherMessageBubble: '#382820',
+    otherMessageText: '#fed7aa',
+    otherUsernameColor: '#d97706',
+    isLight: false,
+    primary: '#d97706'
+  },
+
+  {
+    id: 'arctic',
+    name: 'Arctic',
+    background: '#f1f5f9',
+    myMessageBubble: '#0284c7',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#0369a1',
+    otherMessageBubble: '#dbeafe',
+    otherMessageText: '#1e3a5f',
+    otherUsernameColor: '#0284c7',
+    isLight: true,
+    primary: '#0284c7'
+  },
+
+  {
+    id: 'cosmic',
+    name: 'Cosmic',
+    background: '#100b25',
+    myMessageBubble: '#8b5cf6',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#c4b5fd',
+    otherMessageBubble: '#25183f',
+    otherMessageText: '#ede9fe',
+    otherUsernameColor: '#a78bfa',
+    isLight: false,
+    primary: '#8b5cf6'
+  },
+
+  {
+    id: 'matrix',
+    name: 'Matrix',
+    background: '#020a05',
+    myMessageBubble: '#00ff41',
+    myMessageText: '#001a07',
+    myUsernameColor: '#00ff41',
+    otherMessageBubble: '#092414',
+    otherMessageText: '#86efac',
+    otherUsernameColor: '#22c55e',
+    isLight: false,
+    primary: '#00ff41'
+  },
+
+  {
+    id: 'noir',
+    name: 'Noir',
+    background: '#121212',
+    myMessageBubble: '#f5f5f5',
+    myMessageText: '#111111',
+    myUsernameColor: '#ffffff',
+    otherMessageBubble: '#292929',
+    otherMessageText: '#d4d4d4',
+    otherUsernameColor: '#a3a3a3',
+    isLight: false,
+    primary: '#f5f5f5'
+  },
+
+  {
+    id: 'sakura-night',
+    name: 'Sakura Night',
+    background: '#1c1018',
+    myMessageBubble: '#ec4899',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#f9a8d4',
+    otherMessageBubble: '#38202f',
+    otherMessageText: '#fce7f3',
+    otherUsernameColor: '#f472b6',
+    isLight: false,
+    primary: '#ec4899'
+  },
+
+  {
+    id: 'desert',
+    name: 'Desert',
+    background: '#faf3e8',
+    myMessageBubble: '#c2410c',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#9a3412',
+    otherMessageBubble: '#ead7bd',
+    otherMessageText: '#4a2c1a',
+    otherUsernameColor: '#c2410c',
+    isLight: true,
+    primary: '#c2410c'
+  },
+
+  {
+    id: 'vaporwave',
+    name: 'Vaporwave',
+    background: '#170b2e',
+    myMessageBubble: '#ff71ce',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#ff71ce',
+    otherMessageBubble: '#30205a',
+    otherMessageText: '#c4b5fd',
+    otherUsernameColor: '#01cdfe',
+    isLight: false,
+    primary: '#01cdfe'
+  },
+
+  {
+    id: 'crystal',
+    name: 'Crystal',
+    background: '#eef2ff',
+    myMessageBubble: '#6366f1',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#4f46e5',
+    otherMessageBubble: '#dbeafe',
+    otherMessageText: '#1e293b',
+    otherUsernameColor: '#6366f1',
+    isLight: true,
+    primary: '#6366f1'
+  },
+
+  {
+    id: 'soft-minimal',
+    name: 'Soft Minimal',
+    background: '#f8fafc',
+    myMessageBubble: '#334155',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#475569',
+    otherMessageBubble: '#e2e8f0',
+    otherMessageText: '#334155',
+    otherUsernameColor: '#64748b',
+    isLight: true,
+    primary: '#475569'
+  },
+  {
+    id: 'royal',
+    name: 'Royal',
+    background: '#100c1c',
+    myMessageBubble: '#7c3aed',
+    myMessageText: '#ffffff',
+    myUsernameColor: '#c4b5fd',
+    otherMessageBubble: '#261947',
+    otherMessageText: '#ede9fe',
+    otherUsernameColor: '#a78bfa',
+    isLight: false,
+    primary: '#8b5cf6'
+  },
+
+  {
+    id: 'chocolate',
+    name: 'Chocolate',
+    background: '#1c110d',
+    myMessageBubble: '#92400e',
+    myMessageText: '#fff7ed',
+    myUsernameColor: '#fdba74',
+    otherMessageBubble: '#352018',
+    otherMessageText: '#fed7aa',
+    otherUsernameColor: '#f59e0b',
+    isLight: false,
+    primary: '#d97706'
   }
 ];

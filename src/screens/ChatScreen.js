@@ -841,7 +841,7 @@ export default function ChatScreen({ route, navigation }) {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <StatusBar style={theme.isLight ? 'dark' : 'light'} backgroundColor={theme.background} />
       <SafeAreaView style={{ flex: 0, backgroundColor: theme.background }} edges={['top']} onLayout={(e) => setTopInset(e.nativeEvent.layout.height)} />
       <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
@@ -863,7 +863,7 @@ export default function ChatScreen({ route, navigation }) {
       </View>
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{ flex: 1, marginBottom: 0, backgroundColor: 'transparent' }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? topInset + headerHeight : 0}
       >
@@ -956,7 +956,7 @@ export default function ChatScreen({ route, navigation }) {
           onCancelReply={() => setReplyingTo(null)}
         />
       </KeyboardAvoidingView>
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: theme.background }} />
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: 'transparent' }} />
 
       {currentRoom && (
         <MembersPanel

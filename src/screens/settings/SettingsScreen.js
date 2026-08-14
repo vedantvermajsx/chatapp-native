@@ -117,7 +117,6 @@ export default function SettingsScreen({ navigation }) {
           <Row
             icon="color-palette-outline"
             label="Appearance"
-            sub="Chat theme and colors"
             onPress={() => setShowThemePicker(true)}
             isLast
           />
@@ -129,13 +128,11 @@ export default function SettingsScreen({ navigation }) {
           <Row
             icon="server-outline"
             label="Storage & Data"
-            sub="Manage cached media on this device"
             onPress={() => navigation.navigate('Storage')}
           />
           <Row
             icon="trash-bin-outline"
             label="Clear app data"
-            sub="Remove locally synced chats and rooms"
             onPress={handleClearData}
             disabled={clearingData}
             right={clearingData ? <Spinner size="small" color={accent} /> : null}
@@ -149,7 +146,6 @@ export default function SettingsScreen({ navigation }) {
           <Row
             icon="shield-checkmark-outline"
             label="Security & Policy"
-            sub="Privacy policy, terms and account security"
             onPress={() => navigation.navigate('SecurityPolicy')}
             isLast
           />

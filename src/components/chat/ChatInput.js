@@ -175,7 +175,7 @@ export default function ChatInput({
   };
 
   return (
-    <View style={[styles.inputWrap, { backgroundColor: theme.background, borderTopColor: theme.isLight ? '#cbd5e0' : '#4a5568' }]}>
+    <View style={[styles.inputWrap, { backgroundColor: 'transparent', borderTopColor: theme.isLight ? '#cbd5e0' : '#4a5568' }]}>
       {disabled && <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background, opacity: 0.6, zIndex: 5 }]} />}
 
       <ChatMediaPreview media={pendingMedia} onRemove={onRemoveMedia} theme={theme} />

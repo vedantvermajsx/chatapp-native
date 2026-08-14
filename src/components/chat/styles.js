@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
   iconBtn: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 
   // ── ChatInput 
-  inputWrap: { borderTopWidth: 0, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 8, position: 'relative' },
+  inputWrap: { borderTopWidth: 0, paddingHorizontal: 8, paddingTop: 8, paddingBottom: 8, position: 'relative' },
   replyPreviewBar: { flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, marginBottom: 6 },
   replyPreviewName: { fontSize: 12.5, fontWeight: '700', marginBottom: 1 },
   replyPreviewText: { fontSize: 12.5, opacity: 0.8 },

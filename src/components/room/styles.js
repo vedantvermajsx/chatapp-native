@@ -52,7 +52,7 @@ export const styles = StyleSheet.create({
   createModalBtnTextPrimary: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   // ── ThemePickerModal
-  themeModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'flex-end' },
+  themeModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.0)', alignItems: 'center', justifyContent: 'flex-end' },
   dragHandle: { width: 36, height: 5, borderRadius: 999, alignSelf: 'center', marginBottom: 10 },
   themeModalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4, textAlign: 'center', flex: 1 },
   themeCard: { width: '100%', borderRadius: 20, padding: 15, borderWidth: 1 },
