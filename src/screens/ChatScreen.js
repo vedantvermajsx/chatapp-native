@@ -656,6 +656,29 @@ export default function ChatScreen({ route, navigation }) {
     const { uuid } = sendOptimistic(text, localPreview, replySnapshot, taggedUserId);
     const originalCacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
 
+    const pendingMessageData = {
+      id: uuid,
+      text,
+      media: localPreview,
+      mediaType: localPreview?.type || null,
+      mediaId: localMedia ? uuid : null,
+      timestamp: new Date().toISOString(),
+      username: user.username,
+      avatar: user.avatar || null,
+      gender: user.gender,
+      type: roomId ? 'room' : 'private',
+      roomId: roomId || undefined,
+      roomPublicKey: roomId ? roomPublicKey : undefined,
+      receiverId: otherUserId || undefined,
+      receiverModel: otherUserId ? (currentPrivateChat?.role === 'guest' ? 'Guest' : 'User') : undefined,
+    };
+    try {
+      await dbService.addPendingMessage(pendingMessageData);
+      if (localMedia) await dbService.addFile(uuid, localMedia);
+    } catch (persistErr) {
+      console.error('Failed to queue message for retry:', persistErr);
+    }
+
     try {
       let finalMedia = null;
       if (localMedia) {
@@ -680,30 +703,11 @@ export default function ChatScreen({ route, navigation }) {
         });
       }
       resolveOptimistic(uuid, response, finalMedia, originalCacheKey, replySnapshot, taggedUserId, text);
+
+      dbService.removePendingMessage(uuid).catch(() => {});
+      if (localMedia) dbService.removeFile(uuid).catch(() => {});
     } catch (e) {
       showApiError(e, 'Message not delivered (still pending)');
-      try {
-        const pendingMessageData = {
-          id: uuid,
-          text,
-          media: localPreview,
-          mediaType: localPreview?.type || null,
-          mediaId: localMedia ? uuid : null,
-          timestamp: new Date().toISOString(),
-          username: user.username,
-          avatar: user.avatar || null,
-          gender: user.gender,
-          type: roomId ? 'room' : 'private',
-          roomId: roomId || undefined,
-          roomPublicKey: roomId ? roomPublicKey : undefined,
-          receiverId: otherUserId || undefined,
-          receiverModel: otherUserId ? (currentPrivateChat?.role === 'guest' ? 'Guest' : 'User') : undefined,
-        };
-        await dbService.addPendingMessage(pendingMessageData);
-        if (localMedia) await dbService.addFile(uuid, localMedia);
-      } catch (persistErr) {
-        console.error('Failed to queue message for retry:', persistErr);
-      }
     } finally {
       setUploadProgresses((prev) => {
         const next = { ...prev };
@@ -720,6 +724,28 @@ export default function ChatScreen({ route, navigation }) {
     setReplyingTo(null);
     const { uuid } = sendOptimistic('', sticker, replySnapshot);
     const originalCacheKey = roomId ? `room_${roomId}` : otherUserId ? `private_${otherUserId}` : null;
+
+    try {
+      await dbService.addPendingMessage({
+        id: uuid,
+        text: '',
+        media: sticker,
+        mediaType: null,
+        mediaId: null,
+        timestamp: new Date().toISOString(),
+        username: user.username,
+        avatar: user.avatar || null,
+        gender: user.gender,
+        type: roomId ? 'room' : 'private',
+        roomId: roomId || undefined,
+        roomPublicKey: roomId ? roomPublicKey : undefined,
+        receiverId: otherUserId || undefined,
+        receiverModel: otherUserId ? (currentPrivateChat?.role === 'guest' ? 'Guest' : 'User') : undefined,
+      });
+    } catch (persistErr) {
+      console.error('Failed to queue sticker for retry:', persistErr);
+    }
+
     try {
       let response;
       if (roomId) response = await messageService.sendRoomMessage({ roomId, text: '', media: sticker, uuid, roomPublicKey, replyTo: replySnapshot, taggedUser: replySnapshot?.senderId });
@@ -735,28 +761,9 @@ export default function ChatScreen({ route, navigation }) {
         });
       }
       resolveOptimistic(uuid, response, sticker, originalCacheKey, replySnapshot);
+      dbService.removePendingMessage(uuid).catch(() => {});
     } catch (e) {
       showApiError(e, 'Sticker not delivered (still pending)');
-      try {
-        await dbService.addPendingMessage({
-          id: uuid,
-          text: '',
-          media: sticker,
-          mediaType: null,
-          mediaId: null,
-          timestamp: new Date().toISOString(),
-          username: user.username,
-          avatar: user.avatar || null,
-          gender: user.gender,
-          type: roomId ? 'room' : 'private',
-          roomId: roomId || undefined,
-          roomPublicKey: roomId ? roomPublicKey : undefined,
-          receiverId: otherUserId || undefined,
-          receiverModel: otherUserId ? (currentPrivateChat?.role === 'guest' ? 'Guest' : 'User') : undefined,
-        });
-      } catch (persistErr) {
-        console.error('Failed to queue sticker for retry:', persistErr);
-      }
     }
   };
 
