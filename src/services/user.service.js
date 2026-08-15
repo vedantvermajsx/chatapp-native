@@ -31,6 +31,8 @@ class UserService {
       id: u.userid || u.id || u._id,
       username: u.username,
       avatar: u.pfp ?? u.avatar ?? '',
+      bio: u.bio ?? '',
+      gender: u.gender,
     }));
   }
 }

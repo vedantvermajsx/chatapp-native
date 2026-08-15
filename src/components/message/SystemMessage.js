@@ -10,7 +10,7 @@ export function SystemMessage({ msg, isPrivateChat }) {
   const icon = msg.systemType ? SYSTEM_ICONS[msg.systemType] : null;
   return (
     <View style={styles.systemWrap}>
-      <View style={[styles.systemPill, { borderColor: theme.otherMessageBubble }]}>
+      <View style={[styles.systemPill, { borderColor: theme.otherMessageBubble, backgroundColor: theme.otherMessageBubble }]}>
         {icon && <Ionicons name={icon} size={13} color={theme.otherMessageText} style={{ marginRight: 6 }} />}
         <Text style={[styles.systemText, { color: theme.otherMessageText }]}>{msg.text}</Text>
       </View>

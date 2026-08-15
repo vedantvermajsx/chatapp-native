@@ -151,8 +151,8 @@ export default function StickerPicker({ onStickerSelect, onClose }) {
             </TouchableOpacity>
           );
         })}
-        <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
-          <Ionicons name="close" size={16} color={subText} />
+        <TouchableOpacity onPress={onClose} style={{ padding: 8,marginTop:2 }}>
+          <Ionicons name="close" size={24} color={subText} />
         </TouchableOpacity>
       </View>
 

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, Pressable, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
+import { useState, useCallback } from 'react';
+import { Modal, View, Text, TouchableOpacity, Pressable, FlatList, Image, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,6 +13,9 @@ export default function ThemePickerModal({ visible, onClose }) {
   const borderColor = theme.isLight ? '#ffffffff' : '#374151';
   const isGuest = user?.role === 'guest';
   const [pickingBackground, setPickingBackground] = useState(false);
+  const { height: windowHeight } = useWindowDimensions();
+
+  const gridMaxHeight = Math.min(360, windowHeight * 0.45);
 
   const handlePickBackground = async () => {
     try {
@@ -36,6 +39,60 @@ export default function ThemePickerModal({ visible, onClose }) {
       setPickingBackground(false);
     }
   };
+
+  const renderThemeItem = useCallback(({ item: t }) => {
+    const selected = t.id === theme.id;
+    return (
+      <TouchableOpacity
+        style={[
+          styles.themeCardItem,
+          {
+            backgroundColor: t.background,
+            borderColor: selected
+              ? accent
+              : theme.isLight
+              ? '#e5e7eb'
+              : '#374151',
+          },
+          selected && { borderWidth: 1 },
+        ]}
+        onPress={() => setTheme(t)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.themePreviewRow}>
+          <View
+            style={[
+              styles.bubblePreview,
+              styles.bubbleOther,
+              { backgroundColor: t.otherMessageBubble },
+            ]}
+          >
+            <Text style={{ fontSize: 6, color: t.otherMessageText }}>Hey</Text>
+          </View>
+          <View
+            style={[
+              styles.bubblePreview,
+              styles.bubbleMine,
+              { backgroundColor: t.myMessageBubble },
+            ]}
+          >
+            <Text style={{ fontSize: 6, color: t.myMessageText }}>Hi</Text>
+          </View>
+        </View>
+        <Text
+          style={[styles.themeName, { color: t.isLight ? '#111827' : '#fff' }]}
+          numberOfLines={1}
+        >
+          {t.name}
+        </Text>
+        {selected && (
+          <View style={[styles.themeSelectedBadge, { backgroundColor: accent }]}>
+            <Ionicons name="checkmark" size={12} color="#fff" />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }, [theme.id, theme.isLight, accent, setTheme]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -106,64 +163,20 @@ export default function ThemePickerModal({ visible, onClose }) {
             </View>
           )}
 
-          <ScrollView style={{ height: 350, overflow: "scroll", paddingVertical: 5 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-            <View style={styles.themeGrid}>
-              {THEMES.map((t) => {
-                const selected = t.id === theme.id;
-                return (
-                  <TouchableOpacity
-                    key={t.id}
-                    style={[
-                      styles.themeCardItem,
-                      {
-                        backgroundColor: t.background,
-                        borderColor: selected
-                          ? accent
-                          : theme.isLight
-                          ? '#e5e7eb'
-                          : '#374151',
-                      },
-                      selected && { borderWidth: 1 },
-                    ]}
-                    onPress={() => setTheme(t)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.themePreviewRow}>
-                      <View
-                        style={[
-                          styles.bubblePreview,
-                          styles.bubbleOther,
-                          { backgroundColor: t.otherMessageBubble },
-                        ]}
-                      >
-                        <Text style={{ fontSize: 6, color: t.otherMessageText }}>Hey</Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.bubblePreview,
-                          styles.bubbleMine,
-                          { backgroundColor: t.myMessageBubble },
-                        ]}
-                      >
-                        <Text style={{ fontSize: 6, color: t.myMessageText }}>Hi</Text>
-                      </View>
-                    </View>
-                    <Text
-                      style={[styles.themeName, { color: t.isLight ? '#111827' : '#fff' }]}
-                      numberOfLines={1}
-                    >
-                      {t.name}
-                    </Text>
-                    {selected && (
-                      <View style={[styles.themeSelectedBadge, { backgroundColor: accent }]}>
-                        <Ionicons name="checkmark" size={12} color="#fff" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </ScrollView>
+          <FlatList
+            data={THEMES}
+            keyExtractor={(t) => t.id}
+            numColumns={3}
+            renderItem={renderThemeItem}
+            columnWrapperStyle={styles.themeGridRow}
+            contentContainerStyle={styles.themeGridContent}
+            style={{ maxHeight: gridMaxHeight }}
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={9}
+            maxToRenderPerBatch={9}
+            windowSize={5}
+            removeClippedSubviews
+          />
         </View>
       </Pressable>
     </Modal>

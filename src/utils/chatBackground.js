@@ -1,10 +1,3 @@
-/**
- * chatBackground.js
- *
- * Lets a (registered) user pick a personal background image for the chat
- * screen. The image is copied into permanent on-device storage.
- */
-
 import { File, Directory, Paths } from 'expo-file-system';
 
 const BG_DIR = new Directory(Paths.document, 'chat-background');
@@ -34,7 +27,7 @@ export function setChatBackground(pickedUri) {
   if (!pickedUri) return null;
   clearChatBackground();
   ensureDir();
-  const dest = new File(BG_DIR, `${BG_BASENAME}.${extensionFromUri(pickedUri)}`);
+  const dest = new File(BG_DIR, `${BG_BASENAME}-${Date.now()}.${extensionFromUri(pickedUri)}`);
   new File(pickedUri).copy(dest);
   return dest.uri;
 }
