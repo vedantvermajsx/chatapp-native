@@ -47,3 +47,4 @@ AGENTS.md
 eas.json
 CLAUDE.md
 .vscode
+.env
