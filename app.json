@@ -17,10 +17,12 @@
     },
     "android": {
       "package": "com.rnapp.app",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS",
+        "POST_NOTIFICATIONS"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -37,10 +39,19 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/icon.png",
-          "imageWidth": 180,
-          "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "image": "./assets/splash.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#000000",
+          "ios": {
+            "image": "./assets/splash.png",
+            "resizeMode": "cover",
+            "backgroundColor": "#000000"
+          },
+          "android": {
+            "image": "./assets/splash.png",
+            "resizeMode": "cover",
+            "backgroundColor": "#000000"
+          }
         }
       ],
       [
@@ -53,13 +64,14 @@
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "@react-native-firebase/app"
     ],
     "extra": {
       "eas": {
-        "projectId": "f7d9eda5-b06c-48e7-ac66-cf5e09555257"
+        "projectId": "0feb9d5c-0750-42de-96bb-d31fed77d602"
       }
     },
-    "owner": "gatherupapps-team"
+    "owner": "gatherupapp"
   }
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1072910303442",
+    "project_id": "gatherup-8f598",
+    "storage_bucket": "gatherup-8f598.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1072910303442:android:3658b2b7b6bc62e1746d0b",
+        "android_client_info": {
+          "package_name": "com.rnapp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9PCw1XISsFf6f4yY0CLgnbPEHOFZSQio"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -143,7 +143,7 @@ export default function ThemePickerModal({ visible, onClose }) {
                     activeOpacity={0.8}
                   >
                     <Ionicons name="image" size={14} color="#fff" />
-                    <Text style={[styles.bgBtnText, { color: '#fff' }]}>
+                    <Text style={[styles.bgBtnText, { color: theme.otherMessageText }]}>
                       {chatBackgroundUri ? 'Change' : 'Add image'}
                     </Text>
                   </TouchableOpacity>

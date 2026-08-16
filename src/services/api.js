@@ -29,7 +29,7 @@ async function attachAuthToken(config) {
   const token = await AsyncStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('[API] Using auth token');
+   // console.log('[API] Using auth token');
   }
   return config;
 }
@@ -40,17 +40,17 @@ function fixContentTypeForFormData(config) {
 }
 
 function logRequest(config) {
-  console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-  if (config.data) {
-    console.log('[API REQUEST BODY]', config.data);
-  }
+//  console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+  // if (config.data) {
+  //   console.log('[API REQUEST BODY]', config.data);
+  // }
   return config;
 }
 
 // --- Response interceptor helpers 
 
 function logResponse(response) {
-  console.log(`[API RESPONSE] ${response.status} ${response.config.url}`, response.data);
+//  console.log(`[API RESPONSE] ${response.status} ${response.config.url}`, response.data);
   return response;
 }
 

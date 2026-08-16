@@ -122,8 +122,6 @@ async function sendSinglePendingMessage(pendingMsg) {
       });
     }
 
-    // No accepted response -> nothing was confirmed, so nothing gets
-    // removed. It simply stays queued for the next retry.
     if (!response) return;
 
     let currentUser = null;

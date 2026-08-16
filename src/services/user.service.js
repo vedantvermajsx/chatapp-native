@@ -35,6 +35,11 @@ class UserService {
       gender: u.gender,
     }));
   }
+
+  async registerDeviceToken(token, platform = 'android') {
+    const res = await api.post(`${this.basePath}/device-token`, { token, platform });
+    return res.data;
+  }
 }
 
 export default new UserService();

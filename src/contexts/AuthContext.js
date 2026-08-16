@@ -2,12 +2,24 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { disconnectSocket } from '../hooks/useChatSocket';
 import authService from '../services/auth.service';
+import userService from '../services/user.service';
 import { dbService } from '../services/localDB.service';
 import keyManager from '../services/keyManager';
 import { generateRsaKeyPairPem } from '../utils/crypto';
 import { onSessionExpired } from '../events/sessionEvents';
+import { registerForPushNotifications } from '../services/firebaseMessaging.service';
 
 const AuthContext = createContext();
+
+function syncPushToken() {
+  registerForPushNotifications((token) => {
+    userService.registerDeviceToken(token).catch((err) => {
+      console.log('Failed to register device token with backend:', err?.message);
+    });
+  }).catch((err) => {
+    console.log('Failed to register for push notifications:', err?.message);
+  });
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -21,6 +33,7 @@ export const AuthProvider = ({ children }) => {
           await keyManager.loadSelfPrivateKey(storedUser._id).catch(() => {});
         }
         setUser(storedUser);
+        syncPushToken();
       }
       setLoading(false);
     })();
@@ -33,6 +46,7 @@ export const AuthProvider = ({ children }) => {
     if (res.privateKey && res.user?._id) {
       await keyManager.setSelfPrivateKey(res.user._id, res.privateKey);
     }
+    syncPushToken();
   };
 
   const login = async (username, password) => {
