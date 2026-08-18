@@ -5,6 +5,13 @@ import { registerFirebaseBackgroundHandler } from './src/services/firebaseBackgr
 
 import App from './App';
 
-registerFirebaseBackgroundHandler();
+try {
+  registerFirebaseBackgroundHandler();
+} catch (error) {
+}
 
-registerRootComponent(App);
+try {
+  registerRootComponent(App);
+} catch (error) {
+  console.log('[index] Error registering root component:', error);
+}

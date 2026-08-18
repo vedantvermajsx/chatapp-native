@@ -7,17 +7,15 @@ import { dbService } from '../services/localDB.service';
 import keyManager from '../services/keyManager';
 import { generateRsaKeyPairPem } from '../utils/crypto';
 import { onSessionExpired } from '../events/sessionEvents';
-import { registerForPushNotifications } from '../services/firebaseMessaging.service';
+import { registerForPushNotifications, getFcmToken, deleteFcmToken } from '../services/firebaseMessaging.service';
 
 const AuthContext = createContext();
 
 function syncPushToken() {
   registerForPushNotifications((token) => {
     userService.registerDeviceToken(token).catch((err) => {
-      console.log('Failed to register device token with backend:', err?.message);
     });
   }).catch((err) => {
-    console.log('Failed to register for push notifications:', err?.message);
   });
 }
 
@@ -26,16 +24,21 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     (async () => {
-      const userStr = await AsyncStorage.getItem('user');
-      if (userStr) {
-        const storedUser = JSON.parse(userStr);
-        if (storedUser?._id) {
-          await keyManager.loadSelfPrivateKey(storedUser._id).catch(() => {});
+      try {
+        const userStr = await AsyncStorage.getItem('user');
+        if (userStr) {
+          const storedUser = JSON.parse(userStr);
+          if (storedUser?._id) {
+            await keyManager.loadSelfPrivateKey(storedUser._id).catch((err) => {
+            });
+          }
+          setUser(storedUser);
+          syncPushToken();
         }
-        setUser(storedUser);
-        syncPushToken();
+      } catch (error) {
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, []);
 
@@ -85,6 +88,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     disconnectSocket();
+    try {
+      const token = await getFcmToken();
+      if (token) {
+        await userService.removeDeviceToken(token).catch(() => {});
+      }
+      await deleteFcmToken();
+    } catch (err) {
+      // Best-effort — don't block logout on push cleanup.
+    }
     await AsyncStorage.multiRemove(['token', 'user']);
     setUser(null);
     try {

@@ -29,7 +29,6 @@ async function attachAuthToken(config) {
   const token = await AsyncStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-   // console.log('[API] Using auth token');
   }
   return config;
 }
@@ -39,20 +38,7 @@ function fixContentTypeForFormData(config) {
   return config;
 }
 
-function logRequest(config) {
-//  console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-  // if (config.data) {
-  //   console.log('[API REQUEST BODY]', config.data);
-  // }
-  return config;
-}
-
-// --- Response interceptor helpers 
-
-function logResponse(response) {
-//  console.log(`[API RESPONSE] ${response.status} ${response.config.url}`, response.data);
-  return response;
-}
+// --- Response interceptor helpers
 
 function logError(error) {
   console.error('[API ERROR]', error.config?.url, error.message);
@@ -78,11 +64,10 @@ async function handleUnauthorized(error) {
 apiClient.interceptors.request.use(async (config) => {
   config = cleanRequestData(config);
   config = await attachAuthToken(config);
-  config = fixContentTypeForFormData(config);
-  return logRequest(config);
+  return fixContentTypeForFormData(config);
 });
 
-apiClient.interceptors.response.use(logResponse, async (error) => {
+apiClient.interceptors.response.use((response) => response, async (error) => {
   logError(error);
   await handleUnauthorized(error);
   return Promise.reject(error);

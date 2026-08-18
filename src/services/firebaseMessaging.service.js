@@ -1,5 +1,15 @@
 import { Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+import { 
+  getMessaging, 
+  requestPermission, 
+  getToken, 
+  deleteToken,
+  onTokenRefresh, 
+  onMessage, 
+  onNotificationOpenedApp, 
+  getInitialNotification,
+  AuthorizationStatus
+} from '@react-native-firebase/messaging';
 
 /**
  * Firebase Cloud Messaging (push notifications).
@@ -17,10 +27,11 @@ let tokenRefreshUnsubscribe = null;
 let notificationOpenedUnsubscribe = null;
 
 export async function requestNotificationPermission() {
-  const authStatus = await messaging().requestPermission();
+  const messaging = getMessaging();
+  const authStatus = await requestPermission(messaging);
   const enabled =
-    authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-    authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+    authStatus === AuthorizationStatus.AUTHORIZED ||
+    authStatus === AuthorizationStatus.PROVISIONAL;
   return enabled;
 }
 
@@ -29,10 +40,10 @@ export async function requestNotificationPermission() {
  */
 export async function getFcmToken() {
   try {
-    const token = await messaging().getToken();
+    const messaging = getMessaging();
+    const token = await getToken(messaging);
     return token;
   } catch (error) {
-    console.log('Failed to get FCM token', error);
     return null;
   }
 }
@@ -45,7 +56,8 @@ export async function registerForPushNotifications(onTokenChange) {
   if (token && onTokenChange) onTokenChange(token);
 
   if (tokenRefreshUnsubscribe) tokenRefreshUnsubscribe();
-  tokenRefreshUnsubscribe = messaging().onTokenRefresh((newToken) => {
+  const messaging = getMessaging();
+  tokenRefreshUnsubscribe = onTokenRefresh(messaging, (newToken) => {
     if (onTokenChange) onTokenChange(newToken);
   });
 
@@ -53,18 +65,19 @@ export async function registerForPushNotifications(onTokenChange) {
 }
 
 export function setupForegroundNotificationHandlers({ onForegroundMessage, onNotificationTap } = {}) {
+  const messaging = getMessaging();
+
   if (foregroundUnsubscribe) foregroundUnsubscribe();
-  foregroundUnsubscribe = messaging().onMessage(async (remoteMessage) => {
+  foregroundUnsubscribe = onMessage(messaging, async (remoteMessage) => {
     if (onForegroundMessage) onForegroundMessage(remoteMessage);
   });
 
   if (notificationOpenedUnsubscribe) notificationOpenedUnsubscribe();
-  notificationOpenedUnsubscribe = messaging().onNotificationOpenedApp((remoteMessage) => {
+  notificationOpenedUnsubscribe = onNotificationOpenedApp(messaging, (remoteMessage) => {
     if (onNotificationTap) onNotificationTap(remoteMessage);
   });
 
-  messaging()
-    .getInitialNotification()
+  getInitialNotification(messaging)
     .then((remoteMessage) => {
       if (remoteMessage) {
         if (onNotificationTap) onNotificationTap(remoteMessage);
@@ -75,6 +88,18 @@ export function setupForegroundNotificationHandlers({ onForegroundMessage, onNot
     if (foregroundUnsubscribe) foregroundUnsubscribe();
     if (notificationOpenedUnsubscribe) notificationOpenedUnsubscribe();
   };
+}
+
+/**
+ * Deletes the FCM token on this device (called on logout so the backend
+ * stops pushing to a device the user is no longer signed in on).
+ */
+export async function deleteFcmToken() {
+  try {
+    const messaging = getMessaging();
+    await deleteToken(messaging);
+  } catch (error) {
+  }
 }
 
 export function isIOS() {

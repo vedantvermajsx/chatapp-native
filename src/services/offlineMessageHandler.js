@@ -4,7 +4,6 @@ import { dbService } from './localDB.service';
 import messageService from './message.service';
 import roomService from './room.service';
 import { showToast } from '../utils/toast';
-import { catchUpNewerMessagesHandler } from '../handlers/chat.handlers';
 
 function isOnlineSafe() {
   if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
@@ -16,9 +15,7 @@ function isOnlineSafe() {
 let isOnline = isOnlineSafe();
 let isSending = false;
 let dependencies = {
-  messageCache: null,
   setUnreadCounts: null,
-  setHasMoreNewerMessages: null,
   setMessages: null,
   currentRoom: null,
   currentPrivateChat: null
@@ -171,37 +168,7 @@ export const sendPendingMessages = async () => {
     const pendingMessages = await dbService.getPendingMessages();
     if (!pendingMessages.length) return;
 
-    const caughtUpChats = new Set();
 
-    for (const pendingMsg of pendingMessages) {
-      const cacheKey = pendingMsg.type === 'room'
-        ? `room_${pendingMsg.roomId}`
-        : `private_${pendingMsg.receiverId}`;
-
-      if (caughtUpChats.has(cacheKey) || !dependencies.messageCache) continue;
-
-      const chatData = dependencies.messageCache.current[cacheKey];
-      if (!chatData?.messages || chatData.messages.length === 0) continue;
-
-      const chatId = pendingMsg.type === 'room' ? pendingMsg.roomId : pendingMsg.receiverId;
-      const type = pendingMsg.type;
-      const isCurrentRoom = type === 'room' && dependencies.currentRoom?._id === chatId;
-      const isCurrentPrivate = type === 'private' && dependencies.currentPrivateChat?.id === chatId;
-      const setMessagesForCache = (isCurrentRoom || isCurrentPrivate) ? dependencies.setMessages : () => {};
-      const roomPk = isCurrentRoom ? dependencies.currentRoom?.privateKey ?? null : null;
-
-      await catchUpNewerMessagesHandler(
-        chatId,
-        type,
-        chatData.messages,
-        setMessagesForCache,
-        dependencies.setHasMoreNewerMessages,
-        dependencies.messageCache,
-        dependencies.setUnreadCounts,
-        roomPk
-      );
-      caughtUpChats.add(cacheKey);
-    }
 
     await Promise.allSettled(pendingMessages.map((pendingMsg) => sendSinglePendingMessage(pendingMsg)));
   } catch (error) {

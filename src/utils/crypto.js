@@ -9,7 +9,7 @@ if (typeof globalThis.btoa === 'undefined') {
   globalThis.btoa = b64encode;
 }
 if (typeof globalThis.atob === 'undefined') {
-  globalThis.atob = b64decode;q
+  globalThis.atob = b64decode;
 }
 if (typeof globalThis.Buffer === 'undefined') {
   globalThis.Buffer = Buffer;

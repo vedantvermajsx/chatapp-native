@@ -40,6 +40,11 @@ class UserService {
     const res = await api.post(`${this.basePath}/device-token`, { token, platform });
     return res.data;
   }
+
+  async removeDeviceToken(token) {
+    const res = await api.delete(`${this.basePath}/device-token`, { data: { token } });
+    return res.data;
+  }
 }
 
 export default new UserService();

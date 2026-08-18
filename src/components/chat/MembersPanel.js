@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Modal, FlatList, Animated, Dim
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../common/Avatar';
-import Spinner from '../common/Spinner';
+import { RoomListSkeleton } from '../common/Skeleton';
 import { useTheme } from '../../contexts/ThemeContext';
 import { styles } from './styles';
 
@@ -132,9 +132,7 @@ export default function MembersPanel({ visible, onClose, members, admin, current
           </View>
 
           {loading && !members?.length ? (
-            <View style={{ padding: 30 }}>
-              <Spinner size="large" />
-            </View>
+            <RoomListSkeleton rows={4} />
           ) : (
             <FlatList
               data={sections}

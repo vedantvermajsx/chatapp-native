@@ -1,265 +1,53 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, RefreshControl, Alert, ScrollView } from 'react-native';
+import {useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import roomService from '../services/room.service';
 import messageService from '../services/message.service';
-import userService from '../services/user.service';
-import { useChatSocket } from '../hooks/useChatSocket';
 import { useUnreadCounts } from '../contexts/UnreadCountsContext';
-import { onPrivateChatUpdated } from '../events/privateChatEvents';
-import Spinner from '../components/common/Spinner';
-import { dbService } from '../services/localDB.service';
 import { showApiError } from '../utils/toast';
 import { generateRsaKeyPairPem } from '../utils/crypto';
 import SidebarHeader from '../components/room/SidebarHeader';
 import RoomSearch from '../components/room/RoomSearch';
 import RoomTabBar from '../components/room/RoomTabBar';
-import RoomRow from '../components/room/RoomRow';
-import PrivateChatRow from '../components/room/PrivateChatRow';
-import UserSearchRow from '../components/room/UserSearchRow';
 import SidebarFooter from '../components/room/SidebarFooter';
 import CreateRoomModal from '../components/room/CreateRoomModal';
+import { useRoomsList } from '../hooks/room/useRoomsList';
+import ChatsTab from '../components/room/ChatsTab';
+import ExploreTab from '../components/room/ExploreTab';
 
 export default function RoomListScreen({ navigation }) {
-  const { user} = useAuth();
+  const { user } = useAuth();
   const { theme } = useTheme();
-  const [joinedRooms, setJoinedRooms] = useState([]);
-  const [globalRooms, setGlobalRooms] = useState([]);
-  const [privateChats, setPrivateChats] = useState([]);
-  const [activeTab, setActiveTab] = useState('chats');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [showCreateRoom, setShowCreateRoom] = useState(false);
-  const [newRoomName, setNewRoomName] = useState('');
-  const [newRoomDesc, setNewRoomDesc] = useState('');
-  const [creatingRoom, setCreatingRoom] = useState(false);
-  const [loadingRooms, setLoadingRooms] = useState(false);
-  const [loadingGlobal, setLoadingGlobal] = useState(false);
-  const [loadingPrivate, setLoadingPrivate] = useState(false);
-  const [joiningRoomId, setJoiningRoomId] = useState(null);
   const { unreadCounts, loadUnread } = useUnreadCounts();
-  const [userResults, setUserResults] = useState([]);
-  const [searchingUsers, setSearchingUsers] = useState(false);
 
   const accent = theme.primary || theme.myMessageBubble || '#008080';
   const borderColor = theme.isLight ? '#797f89ff' : '#374151';
 
-  const loadJoined = useCallback(async () => {
-    const cached = await dbService.getCachedJoinedRooms();
-    if (cached.length) setJoinedRooms((prev) => (prev.length ? prev : cached));
-
-    setLoadingRooms(true);
-    try {
-      const data = await roomService.getJoinedRooms();
-      const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : (data.rooms || []));
-      setJoinedRooms((prev) => {
-        const serverIds = new Set(list.map((r) => r._id));
-        const notYetOnServer = prev.filter((r) => !serverIds.has(r._id) && r.__optimistic);
-        return [...list, ...notYetOnServer];
-      });
-      await dbService.saveJoinedRooms(list);
-    } catch (e) {
-      if (!cached.length) {
-        setJoinedRooms([]);
-        showApiError(e, 'Could not load rooms');
-      }
-    } finally {
-      setLoadingRooms(false);
-    }
-  }, []);
-
-  const loadGlobal = useCallback(async () => {
-    const cached = await dbService.getRooms('');
-    if (cached.length) setGlobalRooms((prev) => (prev.length ? prev : cached));
-
-    setLoadingGlobal(true);
-    try {
-      const data = await roomService.getAllRooms();
-      const list = Array.isArray(data) ? data : (data.rooms || []);
-      setGlobalRooms(list);
-      await dbService.saveRooms(list, '');
-    } catch (e) {
-      if (!cached.length) {
-        setGlobalRooms([]);
-        showApiError(e, 'Could not load rooms');
-      }
-    } finally {
-      setLoadingGlobal(false);
-    }
-  }, []);
-
-  const mergePrivateChats = (serverList, localList) => {
-    const byId = new Map();
-    serverList.forEach((c) => {
-      const id = c.otherUser?.id || c.otherUser?._id;
-      if (id) byId.set(id, c);
-    });
-    localList.forEach((c) => {
-      const id = c.otherUser?.id || c.otherUser?._id;
-      if (!id) return;
-      const serverEntry = byId.get(id);
-      if (!serverEntry) {
-        byId.set(id, c);
-        return;
-      }
-      const serverTs = new Date(serverEntry.lastMessage?.timestamp || 0).getTime();
-      const localTs = new Date(c.lastMessage?.timestamp || 0).getTime();
-      if (localTs > serverTs) {
-        byId.set(id, { ...serverEntry, lastMessage: c.lastMessage });
-      }
-    });
-    return Array.from(byId.values()).sort(
-      (a, b) => new Date(b.lastMessage?.timestamp || 0) - new Date(a.lastMessage?.timestamp || 0)
-    );
-  };
-
-  const loadPrivate = useCallback(async () => {
-    const cached = await dbService.getPrivateChats();
-    if (cached.length) setPrivateChats((prev) => (prev.length ? prev : cached));
-
-    setLoadingPrivate(true);
-    try {
-      const data = await messageService.getPrivateChats();
-      const list = Array.isArray(data) ? data : (data.chats || []);
-      setPrivateChats((prev) => {
-        const merged = mergePrivateChats(list, prev);
-        dbService.savePrivateChats(merged).catch(() => {});
-        return merged;
-      });
-    } catch (e) {
-      if (!cached.length) {
-        setPrivateChats([]);
-        showApiError(e, 'Could not load chats');
-      }
-    } finally {
-      setLoadingPrivate(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = onPrivateChatUpdated((otherUser, lastMessage) => {
-      setPrivateChats((prev) => {
-        const idx = prev.findIndex((c) => (c.otherUser?.id || c.otherUser?._id) === otherUser.id);
-        let next;
-        if (idx !== -1) {
-          const existing = prev[idx];
-          const updated = { ...existing, otherUser: { ...existing.otherUser, ...otherUser }, lastMessage };
-          next = [updated, ...prev.slice(0, idx), ...prev.slice(idx + 1)];
-        } else {
-          next = [{ otherUser, lastMessage }, ...prev];
-        }
-        dbService.savePrivateChats(next).catch(() => {});
-        return next;
-      });
-    });
-    return unsubscribe;
-  }, []);
-
-  const handleRoomEvent = useCallback((evt) => {
-    if (!evt) return;
-    if (evt.type === 'new') {
-      loadJoined();
-      loadGlobal();
-    } else if (evt.type === 'updated' && evt.room) {
-      const id = evt.room._id || evt.room.id;
-      setJoinedRooms((prev) => prev.map((r) => (r._id === id ? { ...r, ...evt.room } : r)));
-      setGlobalRooms((prev) => prev.map((r) => (r._id === id ? { ...r, ...evt.room } : r)));
-    } else if (evt.type === 'deleted' && evt.roomId) {
-      setJoinedRooms((prev) => prev.filter((r) => r._id !== evt.roomId));
-      setGlobalRooms((prev) => prev.filter((r) => r._id !== evt.roomId));
-    }
-  }, [loadJoined, loadGlobal]);
-
-  const handleStartPrivateChat = useCallback((otherUser) => {
-    const otherUserId = otherUser.id || otherUser._id;
-    if (!otherUserId) return;
-
-    setPrivateChats((prev) => {
-      const idx = prev.findIndex((c) => (c.otherUser?.id || c.otherUser?._id) === otherUserId);
-      if (idx !== -1) {
-        const updated = [...prev];
-        const [existing] = updated.splice(idx, 1);
-        const next = [existing, ...updated];
-        dbService.savePrivateChats(next);
-        return next;
-      }
-
-      const next = [{ otherUser: { ...otherUser, id: otherUserId }, lastMessage: null }, ...prev];
-      dbService.savePrivateChats(next);
-      return next;
-    });
-  }, []);
-
-  const handlePrivateMessage = useCallback(async (msg) => {
-    const myId = user?._id || user?.id;
-    const isOwnMessage = msg.senderId === myId;
-    const otherUserId = isOwnMessage ? msg.receiverId : msg.senderId;
-    if (!otherUserId) return;
-
-    const previewText = await messageService.decryptChatPreview(msg);
-
-    let isBrandNew = false;
-    setPrivateChats((prev) => {
-      const idx = prev.findIndex((c) => (c.otherUser?.id || c.otherUser?._id) === otherUserId);
-      const lastMessage = { content: previewText, timestamp: msg.timestamp || new Date().toISOString() };
-
-      if (idx !== -1) {
-        const updated = [...prev];
-        const [existing] = updated.splice(idx, 1);
-        const next = [{ ...existing, lastMessage }, ...updated];
-        dbService.savePrivateChats(next);
-        return next;
-      }
-
-      isBrandNew = true;
-
-      const otherUser = isOwnMessage
-        ? {
-            id: otherUserId,
-            username: msg.receiverUsername || msg.username || 'Unknown',
-            role: (msg.receiverModel?.toLowerCase() || 'user'),
-            avatar: msg.receiverAvatar || null,
-            isOnline: msg.isOnline,
-          }
-        : {
-            id: otherUserId,
-            username: msg.senderUsername || msg.username || 'Unknown',
-            role: (msg.senderModel?.toLowerCase() || 'user'),
-            avatar: msg.avatar || null,
-            isOnline: msg.isOnline,
-          };
-      const next = [{ otherUser, lastMessage }, ...prev];
-      dbService.savePrivateChats(next);
-      return next;
-    });
-
-    if (isBrandNew) {
-      loadPrivate();
-    }
-  }, [user, loadPrivate]);
-
-  const { emitJoinRoom } = useChatSocket(user, {
-    onRoomEvent: handleRoomEvent,
-    onPrivateMessage: handlePrivateMessage,
-  });
-
-  useEffect(() => {
-    loadJoined();
-    loadGlobal();
-    loadPrivate();
-  }, [loadJoined, loadGlobal, loadPrivate]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadJoined();
-      loadPrivate();
-    }, [loadJoined, loadPrivate])
-  );
+  const {
+    joinedRooms, setJoinedRooms,
+    globalRooms,
+    privateChats, setPrivateChats,
+    activeTab, setActiveTab,
+    searchQuery, setSearchQuery,
+    refreshing, setRefreshing,
+    showCreateRoom, setShowCreateRoom,
+    newRoomName, setNewRoomName,
+    newRoomDesc, setNewRoomDesc,
+    creatingRoom, setCreatingRoom,
+    loadingRooms,
+    loadingGlobal,
+    loadingPrivate,
+    joiningRoomId, setJoiningRoomId,
+    userResults,
+    searchingUsers,
+    loadJoined, loadGlobal, loadPrivate,
+    handleStartPrivateChat, emitJoinRoom,
+    isUserSearch, filteredJoined, filteredGlobal, filteredPrivate
+  } = useRoomsList({ user });
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -342,152 +130,10 @@ export default function RoomListScreen({ navigation }) {
     ]);
   };
 
-  const isUserSearch = activeTab === 'explore' && searchQuery.trim().startsWith('@');
-
-  useEffect(() => {
-    if (!isUserSearch) {
-      setUserResults([]);
-      return;
-    }
-    const q = searchQuery.trim().slice(1);
-    if (!q) {
-      setUserResults([]);
-      return;
-    }
-    setSearchingUsers(true);
-    const t = setTimeout(async () => {
-      try {
-        const results = await userService.searchUsers(q, 5);
-        setUserResults(Array.isArray(results) ? results.slice(0, 5) : []);
-      } catch (e) {
-        setUserResults([]);
-      } finally {
-        setSearchingUsers(false);
-      }
-    }, 400);
-    return () => clearTimeout(t);
-  }, [isUserSearch, searchQuery]);
-
-  const filteredJoined = useMemo(() => {
-    if (!searchQuery) return joinedRooms;
-    const q = searchQuery.toLowerCase();
-    return joinedRooms.filter(r => (r.groupName || r.name || '').toLowerCase().includes(q));
-  }, [joinedRooms, searchQuery]);
-
-  const filteredGlobal = useMemo(() => {
-    const joinedIds = new Set(joinedRooms.map(r => r._id));
-    let list = globalRooms.filter(r => !joinedIds.has(r._id));
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(r => (r.groupName || r.name || '').toLowerCase().includes(q));
-    }
-    return list;
-  }, [globalRooms, joinedRooms, searchQuery]);
-
-  const filteredPrivate = useMemo(() => {
-    if (!searchQuery) return privateChats;
-    const q = searchQuery.toLowerCase();
-    return privateChats.filter(c => (c.otherUser?.username || '').toLowerCase().includes(q));
-  }, [privateChats, searchQuery]);
-
   const myChatsUnread = useMemo(
     () => Object.values(unreadCounts).reduce((sum, n) => sum + (n || 0), 0),
     [unreadCounts]
   );
-
-  const renderSectionHeader = (label) => (
-    <View style={styles.sectionHeader}>
-      <Text style={[styles.sectionTitle, { color: theme.otherUsernameColor }]}>{label}</Text>
-    </View>
-  );
-
-  const renderChatsList = () => (
-    <ScrollView
-      refreshControl={<RefreshControl tintColor={accent} refreshing={refreshing} onRefresh={onRefresh} />}
-      contentContainerStyle={{ paddingBottom: 24 }}
-    >
-      {renderSectionHeader('Groups')}
-      {loadingRooms && filteredJoined.length === 0 ? (
-        <View style={{ padding: 24 }}><Spinner size="large" /></View>
-      ) : filteredJoined.length === 0 ? (
-        <Text style={styles.emptyInline}>Join a group from Explore</Text>
-      ) : (
-        filteredJoined.map((r) => (
-          <RoomRow
-            key={r._id}
-            item={r}
-            isJoined={true}
-            unreadCounts={unreadCounts}
-            navigation={navigation}
-            handleJoinRoom={handleJoinRoom}
-          />
-        ))
-      )}
-
-      {renderSectionHeader('Private Chats')}
-      {loadingPrivate && filteredPrivate.length === 0 ? (
-        <View style={{ padding: 24 }}><Spinner size="large" /></View>
-      ) : filteredPrivate.length === 0 ? (
-        <Text style={styles.emptyInline}>No private chats yet</Text>
-      ) : (
-        filteredPrivate.map((c) => (
-          <PrivateChatRow
-            key={c.otherUser?.id || c.otherUser?._id}
-            chat={c}
-            unreadCounts={unreadCounts}
-            navigation={navigation}
-            handleDeletePrivateChat={handleDeletePrivateChat}
-          />
-        ))
-      )}
-    </ScrollView>
-  );
-
-  const renderExploreList = () => {
-    if (isUserSearch) {
-      const myId = user?._id || user?.id;
-      const people = userResults.filter((u) => (u.id || u._id) !== myId);
-      return (
-        <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-          {renderSectionHeader('People')}
-          {searchingUsers && people.length === 0 ? (
-            <View style={{ padding: 24 }}><Spinner size="large" /></View>
-          ) : people.length === 0 ? (
-            <Text style={styles.emptyInline}>No users found</Text>
-          ) : (
-            people.map((u) => (
-              <UserSearchRow key={u.id || u._id} user={u} navigation={navigation} onStartChat={handleStartPrivateChat} />
-            ))
-          )}
-        </ScrollView>
-      );
-    }
-
-    return (
-      <ScrollView
-        refreshControl={<RefreshControl tintColor={accent} refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={{ paddingBottom: 24 }}
-      >
-        {renderSectionHeader('All Groups')}
-        {loadingGlobal ? (
-          <View style={{ padding: 24 }}><Spinner size="large" /></View>
-        ) : filteredGlobal.length === 0 ? (
-          <Text style={styles.emptyInline}>You've joined every available room</Text>
-        ) : (
-          filteredGlobal.map((r) => (
-            <RoomRow
-              key={r._id}
-              item={r}
-              isJoined={false}
-              unreadCounts={unreadCounts}
-              navigation={navigation}
-              handleJoinRoom={handleJoinRoom}
-            />
-          ))
-        )}
-      </ScrollView>
-    );
-  };
 
   const renderNewRoomBtn = () => {
     if (activeTab !== 'chats' || user?.role === 'guest') return null;
@@ -521,8 +167,40 @@ export default function RoomListScreen({ navigation }) {
           />
           <RoomTabBar activeTab={activeTab} setActiveTab={setActiveTab} myChatsUnread={myChatsUnread} />
           <View style={{ flex: 1 }}>
-            {activeTab === 'chats' && renderChatsList()}
-            {activeTab === 'explore' && renderExploreList()}
+            {activeTab === 'chats' && (
+              <ChatsTab
+                theme={theme}
+                accent={accent}
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                loadingRooms={loadingRooms}
+                filteredJoined={filteredJoined}
+                unreadCounts={unreadCounts}
+                navigation={navigation}
+                handleJoinRoom={handleJoinRoom}
+                loadingPrivate={loadingPrivate}
+                filteredPrivate={filteredPrivate}
+                handleDeletePrivateChat={handleDeletePrivateChat}
+              />
+            )}
+            {activeTab === 'explore' && (
+              <ExploreTab
+                theme={theme}
+                accent={accent}
+                isUserSearch={isUserSearch}
+                user={user}
+                userResults={userResults}
+                searchingUsers={searchingUsers}
+                navigation={navigation}
+                handleStartPrivateChat={handleStartPrivateChat}
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                loadingGlobal={loadingGlobal}
+                filteredGlobal={filteredGlobal}
+                unreadCounts={unreadCounts}
+                handleJoinRoom={handleJoinRoom}
+              />
+            )}
           </View>
           {renderNewRoomBtn()}
           <SidebarFooter navigation={navigation} />
@@ -537,7 +215,6 @@ export default function RoomListScreen({ navigation }) {
             creatingRoom={creatingRoom}
             handleCreateRoom={handleCreateRoom}
           />
-
         </View>
       </SafeAreaView>
     </View>
@@ -546,9 +223,6 @@ export default function RoomListScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  sectionHeader: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
-  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
-  emptyInline: { paddingHorizontal: 16, paddingVertical: 8, color: '#9ca3af', fontSize: 12.5 },
   newRoomWrap: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1 },
   newRoomBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 16, borderWidth: 0 },
   newRoomIcon: { width: 28, height: 28, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },

@@ -8,6 +8,11 @@
     "backgroundColor": "#000000",
     "userInterfaceStyle": "dark",
     "ios": {
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#000000"
+      },
       "supportsTablet": true,
       "bundleIdentifier": "com.rnapp.app",
       "infoPlist": {
@@ -16,6 +21,11 @@
       }
     },
     "android": {
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#000000"
+      },
       "package": "com.rnapp.app",
       "googleServicesFile": "./google-services.json",
       "permissions": [
@@ -34,6 +44,11 @@
     "web": {
       "favicon": "./assets/icon.png"
     },
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#000000"
+    },
     "plugins": [
       "expo-video",
       [
@@ -41,31 +56,22 @@
         {
           "image": "./assets/splash.png",
           "resizeMode": "cover",
-          "backgroundColor": "#000000",
-          "ios": {
-            "image": "./assets/splash.png",
-            "resizeMode": "cover",
-            "backgroundColor": "#000000"
-          },
-          "android": {
-            "image": "./assets/splash.png",
-            "resizeMode": "cover",
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#000000"
         }
       ],
       [
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true,
-            "enableMinifyInReleaseBuilds": true
+            "enableProguardInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false,
+            "enableMinifyInReleaseBuilds": false
           }
         }
       ],
       "expo-asset",
-      "@react-native-firebase/app"
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ],
     "extra": {
       "eas": {
